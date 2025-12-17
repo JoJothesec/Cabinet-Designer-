@@ -1,0 +1,1039 @@
+cat /home/claude/cabinet-designer.html
+Output
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cabinet Designer</title>
+  
+  <!-- load fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Space Mono', monospace;
+      overflow: hidden;
+    }
+    
+    /* hide scrollbars but keep functionality */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #1a1a1a;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #ff6b35;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- app will render here -->
+  <div id="root"></div>
+
+  <!-- load React, ReactDOM, and Babel from CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- load Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- main app code -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // icon components (simplified versions of lucide-react icons)
+    const Camera = ({ size = 24, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+        <circle cx="12" cy="13" r="4"></circle>
+      </svg>
+    );
+
+    const Box = ({ size = 24, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+      </svg>
+    );
+
+    const Ruler = ({ size = 24, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0z"></path>
+        <path d="m14.5 12.5 2-2"></path>
+        <path d="m11.5 9.5 2-2"></path>
+        <path d="m8.5 6.5 2-2"></path>
+        <path d="m17.5 15.5 2-2"></path>
+      </svg>
+    );
+
+    const FileText = ({ size = 24, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <polyline points="10 9 9 9 8 9"></polyline>
+      </svg>
+    );
+
+    const Download = ({ size = 24, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+    );
+
+    const Plus = ({ size = 24, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    );
+
+    const Trash2 = ({ size = 24, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        <line x1="10" y1="11" x2="10" y2="17"></line>
+        <line x1="14" y1="11" x2="14" y2="17"></line>
+      </svg>
+    );
+
+    const Save = ({ size = 24, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+        <polyline points="7 3 7 8 15 8"></polyline>
+      </svg>
+    );
+
+    const FolderOpen = ({ size = 24, color = "currentColor" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+      </svg>
+    );
+
+    // main component
+    const CabinetDesigner = () => {
+      // track all cabinets in project
+      const [cabinets, setCabinets] = useState([]);
+      const [selectedCabinetId, setSelectedCabinetId] = useState(null);
+      const [viewMode, setViewMode] = useState('3d'); // 3d, cutlist, or materials
+      const [projectName, setProjectName] = useState('Untitled Project');
+      
+      // material costs per sheet
+      const [materialCosts, setMaterialCosts] = useState({
+        plywood: 45,
+        mdf: 30,
+        hardwood: 85,
+        melamine: 40
+      });
+      
+      // 3D scene references
+      const canvasRef = useRef(null);
+      const sceneRef = useRef(null);
+      const rendererRef = useRef(null);
+      const cameraRef = useRef(null);
+      const animationRef = useRef(null);
+
+      // create default cabinet
+      const createNewCabinet = () => {
+        return {
+          id: Date.now(),
+          name: `Cabinet ${cabinets.length + 1}`,
+          type: 'base', // base, wall, or tall
+          width: 24,
+          height: 34.5,
+          depth: 24,
+          material: 'plywood',
+          thickness: 0.75, // 3/4 inch
+          doors: 1,
+          drawers: 0,
+          shelves: 1,
+          backPanel: true,
+          toekick: true,
+          toekickHeight: 4,
+          color: '#8B7355'
+        };
+      };
+
+      // setup 3D scene on mount
+      useEffect(() => {
+        if (!canvasRef.current) return;
+
+        // create scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf5f5f5);
+        sceneRef.current = scene;
+
+        // setup camera
+        const camera = new THREE.PerspectiveCamera(
+          50,
+          canvasRef.current.clientWidth / canvasRef.current.clientHeight,
+          0.1,
+          1000
+        );
+        camera.position.set(60, 50, 60);
+        camera.lookAt(0, 0, 0);
+        cameraRef.current = camera;
+
+        // setup renderer
+        const renderer = new THREE.WebGLRenderer({ 
+          canvas: canvasRef.current,
+          antialias: true
+        });
+        renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
+        renderer.shadowMap.enabled = true;
+        rendererRef.current = renderer;
+
+        // add lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(50, 50, 50);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // add ground plane
+        const groundGeometry = new THREE.PlaneGeometry(200, 200);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0xcccccc,
+          roughness: 0.8
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // add grid
+        const gridHelper = new THREE.GridHelper(200, 40, 0x888888, 0xdddddd);
+        scene.add(gridHelper);
+
+        // animation loop
+        const animate = () => {
+          animationRef.current = requestAnimationFrame(animate);
+          renderer.render(scene, camera);
+        };
+        animate();
+
+        // handle resize
+        const handleResize = () => {
+          if (!canvasRef.current) return;
+          camera.aspect = canvasRef.current.clientWidth / canvasRef.current.clientHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
+        };
+        window.addEventListener('resize', handleResize);
+
+        // cleanup
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
+          }
+        };
+      }, []);
+
+      // update 3D when cabinets change
+      useEffect(() => {
+        if (!sceneRef.current) return;
+
+        // remove old cabinet meshes
+        const objectsToRemove = [];
+        sceneRef.current.traverse((object) => {
+          if (object.userData.isCabinet) {
+            objectsToRemove.push(object);
+          }
+        });
+        objectsToRemove.forEach(obj => sceneRef.current.remove(obj));
+
+        // add new cabinet meshes
+        let xOffset = 0;
+        cabinets.forEach((cabinet) => {
+          const cabinetGroup = createCabinet3D(cabinet, xOffset);
+          sceneRef.current.add(cabinetGroup);
+          xOffset += cabinet.width + 2; // space cabinets apart
+        });
+      }, [cabinets, selectedCabinetId]);
+
+      // build 3D cabinet mesh
+      const createCabinet3D = (cabinet, xOffset) => {
+        const group = new THREE.Group();
+        group.userData.isCabinet = true;
+        group.userData.cabinetId = cabinet.id;
+
+        const { width, height, depth, thickness } = cabinet;
+
+        // set material color (highlight if selected)
+        const isSelected = cabinet.id === selectedCabinetId;
+        const materialColor = isSelected ? 0xff6b35 : new THREE.Color(cabinet.color);
+        const material = new THREE.MeshStandardMaterial({ 
+          color: materialColor,
+          roughness: 0.7,
+          metalness: 0.1
+        });
+
+        // create cabinet box panels
+        // left side
+        const sideGeo = new THREE.BoxGeometry(thickness, height, depth);
+        const leftSide = new THREE.Mesh(sideGeo, material);
+        leftSide.position.set(xOffset, height / 2, 0);
+        leftSide.castShadow = true;
+        group.add(leftSide);
+
+        // right side
+        const rightSide = new THREE.Mesh(sideGeo, material);
+        rightSide.position.set(xOffset + width - thickness, height / 2, 0);
+        rightSide.castShadow = true;
+        group.add(rightSide);
+
+        // top
+        const topGeo = new THREE.BoxGeometry(width, thickness, depth);
+        const top = new THREE.Mesh(topGeo, material);
+        top.position.set(xOffset + width / 2, height - thickness / 2, 0);
+        top.castShadow = true;
+        group.add(top);
+
+        // bottom
+        const bottom = new THREE.Mesh(topGeo, material);
+        const bottomY = cabinet.toekick ? cabinet.toekickHeight : 0;
+        bottom.position.set(xOffset + width / 2, bottomY + thickness / 2, 0);
+        bottom.castShadow = true;
+        group.add(bottom);
+
+        // back panel if enabled
+        if (cabinet.backPanel) {
+          const backGeo = new THREE.BoxGeometry(width - thickness * 2, height, 0.25);
+          const backMaterial = new THREE.MeshStandardMaterial({ 
+            color: materialColor,
+            roughness: 0.8
+          });
+          const back = new THREE.Mesh(backGeo, backMaterial);
+          back.position.set(xOffset + width / 2, height / 2, -depth / 2 + 0.125);
+          group.add(back);
+        }
+
+        // shelves
+        const shelfGeo = new THREE.BoxGeometry(width - thickness * 2, thickness, depth - 1);
+        for (let i = 0; i < cabinet.shelves; i++) {
+          const shelfY = height / (cabinet.shelves + 1) * (i + 1);
+          const shelf = new THREE.Mesh(shelfGeo, material);
+          shelf.position.set(xOffset + width / 2, shelfY, 0);
+          group.add(shelf);
+        }
+
+        // doors (front-facing rectangles)
+        const doorWidth = width / cabinet.doors - 1;
+        const doorHeight = height - (cabinet.toekick ? cabinet.toekickHeight : 0) - 2;
+        const doorGeo = new THREE.BoxGeometry(doorWidth, doorHeight, 0.75);
+        const doorMaterial = new THREE.MeshStandardMaterial({ 
+          color: isSelected ? 0xcc5533 : 0x6B5444,
+          roughness: 0.5
+        });
+
+        for (let i = 0; i < cabinet.doors; i++) {
+          const door = new THREE.Mesh(doorGeo, doorMaterial);
+          const doorX = xOffset + (doorWidth + 1) * i + doorWidth / 2 + (width - (doorWidth + 1) * cabinet.doors + 1) / 2;
+          const doorY = (cabinet.toekick ? cabinet.toekickHeight : 0) + doorHeight / 2 + 1;
+          door.position.set(doorX, doorY, depth / 2 + 0.375);
+          door.castShadow = true;
+          group.add(door);
+        }
+
+        // toekick
+        if (cabinet.toekick) {
+          const toekickGeo = new THREE.BoxGeometry(width, cabinet.toekickHeight, thickness);
+          const toekickMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+          const toekick = new THREE.Mesh(toekickGeo, toekickMaterial);
+          toekick.position.set(xOffset + width / 2, cabinet.toekickHeight / 2, depth / 2 - thickness / 2);
+          group.add(toekick);
+        }
+
+        return group;
+      };
+
+      // add new cabinet
+      const handleAddCabinet = () => {
+        const newCabinet = createNewCabinet();
+        setCabinets([...cabinets, newCabinet]);
+        setSelectedCabinetId(newCabinet.id);
+      };
+
+      // delete cabinet
+      const handleDeleteCabinet = (id) => {
+        setCabinets(cabinets.filter(c => c.id !== id));
+        if (selectedCabinetId === id) {
+          setSelectedCabinetId(null);
+        }
+      };
+
+      // update cabinet property
+      const updateCabinet = (id, property, value) => {
+        setCabinets(cabinets.map(c => 
+          c.id === id ? { ...c, [property]: value } : c
+        ));
+      };
+
+      // get selected cabinet object
+      const selectedCabinet = cabinets.find(c => c.id === selectedCabinetId);
+
+      // calculate cut list for all cabinets
+      const generateCutList = () => {
+        const cutList = [];
+        
+        cabinets.forEach(cabinet => {
+          const { width, height, depth, thickness, shelves, backPanel, toekick, toekickHeight, name } = cabinet;
+          
+          // sides (2x)
+          cutList.push({
+            cabinet: name,
+            part: 'Side Panel',
+            quantity: 2,
+            width: depth,
+            height: height,
+            thickness: thickness,
+            material: cabinet.material
+          });
+
+          // top and bottom (2x)
+          const topBottomWidth = width - (thickness * 2);
+          cutList.push({
+            cabinet: name,
+            part: 'Top/Bottom',
+            quantity: 2,
+            width: topBottomWidth,
+            height: depth,
+            thickness: thickness,
+            material: cabinet.material
+          });
+
+          // shelves
+          if (shelves > 0) {
+            cutList.push({
+              cabinet: name,
+              part: 'Shelf',
+              quantity: shelves,
+              width: topBottomWidth,
+              height: depth - 1,
+              thickness: thickness,
+              material: cabinet.material
+            });
+          }
+
+          // back panel
+          if (backPanel) {
+            cutList.push({
+              cabinet: name,
+              part: 'Back Panel',
+              quantity: 1,
+              width: width - (thickness * 2),
+              height: height,
+              thickness: 0.25,
+              material: cabinet.material
+            });
+          }
+
+          // doors
+          if (cabinet.doors > 0) {
+            const doorWidth = width / cabinet.doors - 1;
+            const doorHeight = height - (toekick ? toekickHeight : 0) - 2;
+            cutList.push({
+              cabinet: name,
+              part: 'Door',
+              quantity: cabinet.doors,
+              width: doorWidth,
+              height: doorHeight,
+              thickness: 0.75,
+              material: cabinet.material
+            });
+          }
+        });
+
+        return cutList;
+      };
+
+      // calculate material requirements
+      const calculateMaterials = () => {
+        const cutList = generateCutList();
+        const sheetSize = 48 * 96; // 4x8 sheet in square inches
+        const materialUsage = {};
+
+        cutList.forEach(item => {
+          const material = item.material;
+          const area = (item.width * item.height * item.quantity) / 144; // convert to square feet
+          
+          if (!materialUsage[material]) {
+            materialUsage[material] = { area: 0, sheets: 0, cost: 0 };
+          }
+          materialUsage[material].area += area;
+        });
+
+        // calculate sheets needed and cost
+        Object.keys(materialUsage).forEach(material => {
+          const sheets = Math.ceil(materialUsage[material].area / 32); // 4x8 = 32 sq ft
+          materialUsage[material].sheets = sheets;
+          materialUsage[material].cost = sheets * materialCosts[material];
+        });
+
+        return materialUsage;
+      };
+
+      // save project to localStorage
+      const saveProject = () => {
+        const project = {
+          name: projectName,
+          cabinets: cabinets,
+          materialCosts: materialCosts,
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem('cabinetProject', JSON.stringify(project));
+        alert('Project saved!');
+      };
+
+      // load project from localStorage
+      const loadProject = () => {
+        const saved = localStorage.getItem('cabinetProject');
+        if (saved) {
+          const project = JSON.parse(saved);
+          setProjectName(project.name);
+          setCabinets(project.cabinets);
+          setMaterialCosts(project.materialCosts);
+          alert('Project loaded!');
+        } else {
+          alert('No saved project found');
+        }
+      };
+
+      // export cut list to CSV
+      const exportCutList = () => {
+        const cutList = generateCutList();
+        let csv = 'Cabinet,Part,Quantity,Width (in),Height (in),Thickness (in),Material\n';
+        cutList.forEach(item => {
+          csv += `${item.cabinet},${item.part},${item.quantity},${item.width},${item.height},${item.thickness},${item.material}\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${projectName}-cutlist.csv`;
+        a.click();
+      };
+
+      return (
+        <div style={{ 
+          width: '100vw', 
+          height: '100vh', 
+          display: 'flex', 
+          flexDirection: 'column',
+          fontFamily: '"Space Mono", monospace',
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+          color: '#f0f0f0'
+        }}>
+          {/* header */}
+          <div style={{ 
+            padding: '16px 24px', 
+            background: '#0a0a0a',
+            borderBottom: '2px solid #ff6b35',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <Box size={32} color="#ff6b35" />
+              <input
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '20px',
+                  fontWeight: 'bold',
+                  fontFamily: 'inherit',
+                  outline: 'none'
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={saveProject} style={buttonStyle}>
+                <Save size={18} />
+                Save
+              </button>
+              <button onClick={loadProject} style={buttonStyle}>
+                <FolderOpen size={18} />
+                Load
+              </button>
+              <button onClick={exportCutList} style={buttonStyle}>
+                <Download size={18} />
+                Export
+              </button>
+            </div>
+          </div>
+
+          {/* main content */}
+          <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+            {/* left sidebar - cabinet list */}
+            <div style={{ 
+              width: '280px', 
+              background: '#1a1a1a',
+              borderRight: '1px solid #333',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}>
+              <div style={{ 
+                padding: '16px',
+                borderBottom: '1px solid #333',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span style={{ fontWeight: 'bold', fontSize: '14px' }}>CABINETS</span>
+                <button onClick={handleAddCabinet} style={{
+                  ...buttonStyle,
+                  padding: '6px 12px',
+                  fontSize: '12px'
+                }}>
+                  <Plus size={16} />
+                  Add
+                </button>
+              </div>
+              
+              <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+                {cabinets.length === 0 ? (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '32px 16px',
+                    color: '#666',
+                    fontSize: '14px'
+                  }}>
+                    No cabinets yet.<br/>Click "Add" to start.
+                  </div>
+                ) : (
+                  cabinets.map(cabinet => (
+                    <div
+                      key={cabinet.id}
+                      onClick={() => setSelectedCabinetId(cabinet.id)}
+                      style={{
+                        padding: '12px',
+                        margin: '4px 0',
+                        background: cabinet.id === selectedCabinetId ? '#ff6b35' : '#252525',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                          {cabinet.name}
+                        </div>
+                        <div style={{ fontSize: '12px', opacity: 0.8 }}>
+                          {cabinet.width}" × {cabinet.height}" × {cabinet.depth}"
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCabinet(cabinet.id);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#fff',
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* center - main view area */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              {/* view mode tabs */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '8px', 
+                padding: '12px 16px',
+                background: '#1a1a1a',
+                borderBottom: '1px solid #333'
+              }}>
+                <button
+                  onClick={() => setViewMode('3d')}
+                  style={{
+                    ...tabStyle,
+                    background: viewMode === '3d' ? '#ff6b35' : '#252525'
+                  }}
+                >
+                  <Camera size={16} />
+                  3D View
+                </button>
+                <button
+                  onClick={() => setViewMode('cutlist')}
+                  style={{
+                    ...tabStyle,
+                    background: viewMode === 'cutlist' ? '#ff6b35' : '#252525'
+                  }}
+                >
+                  <Ruler size={16} />
+                  Cut List
+                </button>
+                <button
+                  onClick={() => setViewMode('materials')}
+                  style={{
+                    ...tabStyle,
+                    background: viewMode === 'materials' ? '#ff6b35' : '#252525'
+                  }}
+                >
+                  <FileText size={16} />
+                  Materials
+                </button>
+              </div>
+
+              {/* view content */}
+              <div style={{ flex: 1, overflow: 'auto', background: '#2d2d2d' }}>
+                {viewMode === '3d' && (
+                  <canvas
+                    ref={canvasRef}
+                    style={{ width: '100%', height: '100%', display: 'block' }}
+                  />
+                )}
+
+                {viewMode === 'cutlist' && (
+                  <div style={{ padding: '24px' }}>
+                    <h2 style={{ marginBottom: '16px', color: '#ff6b35' }}>Cut List</h2>
+                    {cabinets.length === 0 ? (
+                      <p style={{ color: '#666' }}>Add cabinets to generate cut list</p>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#1a1a1a', borderBottom: '2px solid #ff6b35' }}>
+                            <th style={tableHeaderStyle}>Cabinet</th>
+                            <th style={tableHeaderStyle}>Part</th>
+                            <th style={tableHeaderStyle}>Qty</th>
+                            <th style={tableHeaderStyle}>Width</th>
+                            <th style={tableHeaderStyle}>Height</th>
+                            <th style={tableHeaderStyle}>Thick</th>
+                            <th style={tableHeaderStyle}>Material</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {generateCutList().map((item, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #333' }}>
+                              <td style={tableCellStyle}>{item.cabinet}</td>
+                              <td style={tableCellStyle}>{item.part}</td>
+                              <td style={tableCellStyle}>{item.quantity}</td>
+                              <td style={tableCellStyle}>{item.width.toFixed(2)}"</td>
+                              <td style={tableCellStyle}>{item.height.toFixed(2)}"</td>
+                              <td style={tableCellStyle}>{item.thickness}"</td>
+                              <td style={tableCellStyle}>{item.material}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+
+                {viewMode === 'materials' && (
+                  <div style={{ padding: '24px' }}>
+                    <h2 style={{ marginBottom: '16px', color: '#ff6b35' }}>Material Requirements</h2>
+                    {cabinets.length === 0 ? (
+                      <p style={{ color: '#666' }}>Add cabinets to calculate materials</p>
+                    ) : (
+                      <div>
+                        {Object.entries(calculateMaterials()).map(([material, data]) => (
+                          <div key={material} style={{
+                            background: '#1a1a1a',
+                            padding: '16px',
+                            marginBottom: '12px',
+                            borderRadius: '4px',
+                            border: '1px solid #333'
+                          }}>
+                            <h3 style={{ 
+                              textTransform: 'capitalize', 
+                              marginBottom: '8px',
+                              color: '#ff6b35'
+                            }}>
+                              {material}
+                            </h3>
+                            <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
+                              <div>Area needed: {data.area.toFixed(1)} sq ft</div>
+                              <div>Sheets (4x8): {data.sheets}</div>
+                              <div>Cost: ${data.cost.toFixed(2)}</div>
+                            </div>
+                          </div>
+                        ))}
+                        <div style={{
+                          marginTop: '24px',
+                          padding: '16px',
+                          background: '#ff6b35',
+                          borderRadius: '4px',
+                          fontWeight: 'bold',
+                          fontSize: '18px'
+                        }}>
+                          Total Cost: ${Object.values(calculateMaterials())
+                            .reduce((sum, data) => sum + data.cost, 0)
+                            .toFixed(2)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* right sidebar - cabinet details */}
+            {selectedCabinet && (
+              <div style={{ 
+                width: '300px', 
+                background: '#1a1a1a',
+                borderLeft: '1px solid #333',
+                overflowY: 'auto',
+                padding: '16px'
+              }}>
+                <h3 style={{ marginBottom: '16px', color: '#ff6b35' }}>
+                  Cabinet Details
+                </h3>
+
+                {/* name */}
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Name</label>
+                  <input
+                    value={selectedCabinet.name}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'name', e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* type */}
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Type</label>
+                  <select
+                    value={selectedCabinet.type}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'type', e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="base">Base Cabinet</option>
+                    <option value="wall">Wall Cabinet</option>
+                    <option value="tall">Tall Cabinet</option>
+                  </select>
+                </div>
+
+                {/* dimensions */}
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Width (inches)</label>
+                  <input
+                    type="number"
+                    value={selectedCabinet.width}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'width', parseFloat(e.target.value))}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Height (inches)</label>
+                  <input
+                    type="number"
+                    value={selectedCabinet.height}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'height', parseFloat(e.target.value))}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Depth (inches)</label>
+                  <input
+                    type="number"
+                    value={selectedCabinet.depth}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'depth', parseFloat(e.target.value))}
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* material */}
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Material</label>
+                  <select
+                    value={selectedCabinet.material}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'material', e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="plywood">Plywood</option>
+                    <option value="mdf">MDF</option>
+                    <option value="hardwood">Hardwood</option>
+                    <option value="melamine">Melamine</option>
+                  </select>
+                </div>
+
+                {/* doors */}
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Number of Doors</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={selectedCabinet.doors}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'doors', parseInt(e.target.value))}
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* drawers */}
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Number of Drawers</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={selectedCabinet.drawers}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'drawers', parseInt(e.target.value))}
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* shelves */}
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Number of Shelves</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={selectedCabinet.shelves}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'shelves', parseInt(e.target.value))}
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* checkboxes */}
+                <div style={{ ...inputGroupStyle, flexDirection: 'row', alignItems: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedCabinet.backPanel}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'backPanel', e.target.checked)}
+                    style={{ marginRight: '8px' }}
+                  />
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Back Panel</label>
+                </div>
+
+                <div style={{ ...inputGroupStyle, flexDirection: 'row', alignItems: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedCabinet.toekick}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'toekick', e.target.checked)}
+                    style={{ marginRight: '8px' }}
+                  />
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Toekick</label>
+                </div>
+
+                {/* color */}
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>Color</label>
+                  <input
+                    type="color"
+                    value={selectedCabinet.color}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'color', e.target.value)}
+                    style={{ ...inputStyle, height: '40px', cursor: 'pointer' }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // styles
+    const buttonStyle = {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '8px 16px',
+      background: '#ff6b35',
+      color: '#fff',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      transition: 'all 0.2s'
+    };
+
+    const tabStyle = {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '8px 16px',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: '14px',
+      color: '#fff',
+      transition: 'all 0.2s'
+    };
+
+    const tableHeaderStyle = {
+      padding: '12px',
+      textAlign: 'left',
+      fontWeight: 'bold',
+      fontSize: '14px'
+    };
+
+    const tableCellStyle = {
+      padding: '12px',
+      fontSize: '14px'
+    };
+
+    const inputGroupStyle = {
+      display: 'flex',
+      flexDirection: 'column',
+      marginBottom: '16px'
+    };
+
+    const labelStyle = {
+      fontSize: '12px',
+      marginBottom: '4px',
+      color: '#aaa',
+      fontWeight: 'bold',
+      textTransform: 'uppercase'
+    };
+
+    const inputStyle = {
+      padding: '8px 12px',
+      background: '#252525',
+      border: '1px solid #333',
+      borderRadius: '4px',
+      color: '#fff',
+      fontFamily: 'inherit',
+      fontSize: '14px'
+    };
+
+    // render app
+    ReactDOM.render(<CabinetDesigner />, document.getElementById('root'));
+  </script>
+</body>
+</html>
