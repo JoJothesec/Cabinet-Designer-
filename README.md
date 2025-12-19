@@ -13,6 +13,10 @@ A professional-grade cabinet design application with 3D visualization, detailed 
 - **Project Management**: Save and load projects using localStorage
 - **Export Functionality**: Export cut lists to CSV for use in your shop
 
+## Getting Started 
+
+clone this reop to work with the code.
+
 ## Running the Application
 
 ### Important: Local Web Server Required
