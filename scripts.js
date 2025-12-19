@@ -567,6 +567,41 @@ const CabinetDesigner = () => {
         group.add(back);
     }
 
+    // face frame (for face frame construction)
+    if (cabinet.construction === 'faceFrame') {
+        const frameThickness = 0.75;
+        const frameWidth = 1.5;
+        
+        // top rail
+        const topRailGeo = new THREE.BoxGeometry(width - thickness * 2, frameWidth, frameThickness);
+        const topRail = new THREE.Mesh(topRailGeo, material);
+        topRail.position.set(xOffset + width / 2, height - frameWidth / 2, depth / 2 - frameThickness / 2);
+        topRail.castShadow = true;
+        group.add(topRail);
+
+        // bottom rail
+        const bottomY = cabinet.toekick ? cabinet.toekickHeight : 0;
+        const bottomRailGeo = new THREE.BoxGeometry(width - thickness * 2, frameWidth, frameThickness);
+        const bottomRail = new THREE.Mesh(bottomRailGeo, material);
+        bottomRail.position.set(xOffset + width / 2, bottomY + frameWidth / 2, depth / 2 - frameThickness / 2);
+        bottomRail.castShadow = true;
+        group.add(bottomRail);
+
+        // left stile
+        const leftStileGeo = new THREE.BoxGeometry(frameWidth, height - frameWidth * 2, frameThickness);
+        const leftStile = new THREE.Mesh(leftStileGeo, material);
+        leftStile.position.set(xOffset + thickness + frameWidth / 2, height / 2, depth / 2 - frameThickness / 2);
+        leftStile.castShadow = true;
+        group.add(leftStile);
+
+        // right stile
+        const rightStileGeo = new THREE.BoxGeometry(frameWidth, height - frameWidth * 2, frameThickness);
+        const rightStile = new THREE.Mesh(rightStileGeo, material);
+        rightStile.position.set(xOffset + width - thickness - frameWidth / 2, height / 2, depth / 2 - frameThickness / 2);
+        rightStile.castShadow = true;
+        group.add(rightStile);
+    }
+
     // shelves
     const shelfGeo = new THREE.BoxGeometry(width - thickness * 2, thickness, depth - 1);
     for (let i = 0; i < cabinet.shelves; i++) {
