@@ -20,52 +20,21 @@
   - Range base cabinet
   - Blind base cabinet
 
-**Estimated Time:** 3-4 weeks  
-**Impact:** High - enables complete kitchen designs
-
 ### Priority 2: Improved 3D Visualization
-- [ ] **Material Textures** (maybe paid for)
-  - Add realistic wood grain textures
-  - Implement proper UV mapping
-  - Add edge banding visualization
-  - Support for different finishes (stain, paint)
-
-- [ ] **Better Lighting** (maybe paid for)
-  - Add ambient occlusion
-  - Shadow quality improvements
-  - Multiple light sources
-  - Day/night mode toggle
-
-- **Camera Presets** ✅
+- [x] **Camera Presets** ✅
 
 ### Priority 3: Enhanced Measurements
-- [ ] **Validation & Constraints**
-  - Min/max dimension warnings
-  - Structural integrity checks
-  - Standard size suggestions
-  - Conflict detection (drawer/door overlap)
+- [x] **Validation & Constraints** ✅
 
-- [x] **Smart Defaults** ✅ **COMPLETED - Dec 20, 2025**
-  - Calculate optimal drawer heights
-  - Auto-position drawers evenly
-  - Suggest door counts based on width
-  - Standard reveal calculations
+- [x] **Smart Defaults** ✅
 
 ### Priority 4: Export Improvements
-- [ ] **Enhanced Cut Lists**
+- [ ] **Enhanced Cut Lists** ‼️
   - Grain direction indicators
   - Edgebanding requirements
   - Hardware installation notes
   - Assembly sequence numbers
 
-- [ ] **Shopping List Generator**
-  - Consolidated hardware list
-  - Standard sheet sizes
-  - Lumber dimensions
-  - Finish materials needed
+- [x] **Shopping List Generator** ✅
 
-- [ ] **Print-Friendly Formats**
-  - Better PDF layouts
-  - Multiple page support
-  - Shop drawing templates
-  - QR codes for digital reference
+- [x] **Print-Friendly Formats** ✅

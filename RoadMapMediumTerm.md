@@ -37,26 +37,7 @@
   - Microwave shelf
   - Open shelving units
 
-### Feature Set 3: Advanced Cut Optimization (maybe paid for)
-- [ ] **Sheet Optimization**
-  - Nesting algorithm for plywood sheets
-  - Minimize waste calculations
-  - Visual layout of cuts on sheets
-  - Support for standard sheet sizes (4x8, 5x5)
-
-- [ ] **Linear Optimization**
-  - Optimize solid wood cuts
-  - Standard lumber lengths
-  - Cross-cut lists
-  - Minimize board footage
-
-- [ ] **Export to CNC** (maybe paid for)
-  - DXF export for CNC routers
-  - G-code generation (basic)
-  - Tool path optimization
-  - Batch processing
-
-### Feature Set 4: Cabinet Templates & Library
+### Feature Set 3: Cabinet Templates & Library
 - [ ] **Standard Templates**
   - Common cabinet sizes (18", 24", 30", 36")
   - Standard heights (30", 34.5", 84", 96")
@@ -76,13 +57,7 @@
   - Leg/foot styles
   - Crown molding profiles
 
-### Feature Set 5: Better Project Management
-- [ ] **Cloud Storage Option** (maybe paid for)
-  - Optional account system
-  - Cloud project sync
-  - Access from multiple devices
-  - Automatic backups
-
+### Feature Set 4: Better Project Management
 - [ ] **Project Organization**
   - Folder/category system
   - Project search and filtering

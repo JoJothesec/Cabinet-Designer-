@@ -41,6 +41,68 @@ canvas:active {
     color: #ff6b35;
     text-transform: uppercase;
 }
+
+/* ========== PRINT-FRIENDLY STYLES ========== */
+@media print {
+    @page {
+        size: letter;
+        margin: 0.5in;
+    }
+    
+    /* Hide UI elements when printing */
+    .no-print,
+    button,
+    .controls,
+    canvas {
+        display: none !important;
+    }
+    
+    /* Ensure content displays properly */
+    body {
+        background: white;
+        color: black;
+    }
+    
+    /* Page break controls */
+    .page-break {
+        page-break-after: always;
+        page-break-inside: avoid;
+    }
+    
+    .no-break {
+        page-break-inside: avoid;
+    }
+    
+    /* Shop drawing specific styles */
+    .shop-drawing-page {
+        page-break-after: always;
+        page-break-inside: avoid;
+    }
+    
+    /* Table styling for print */
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+    
+    th, td {
+        border: 1px solid #000;
+        padding: 8px;
+    }
+    
+    th {
+        background: #333 !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Preserve background colors in print */
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
 /* ========== NEW STYLES FROM PYTHON CODE ========== */
 
 /* Main container for traditional layout */

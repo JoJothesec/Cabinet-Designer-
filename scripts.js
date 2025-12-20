@@ -405,6 +405,7 @@ const CabinetDesigner = () => {
     const [viewMode, setViewMode] = useState('3d');
     const [projectName, setProjectName] = useState('Untitled Project');
     const [showCutList, setShowCutList] = useState(false);
+    const [showShoppingList, setShowShoppingList] = useState(false);
     const [materialCosts, setMaterialCosts] = useState({
         'plywood': 45,
         'hardwood': 75,
@@ -423,6 +424,7 @@ const CabinetDesigner = () => {
         return localStorage.getItem('measurementFormat') || 'both';
     });
     const [showHistoryTimeline, setShowHistoryTimeline] = useState(false); // Show/hide history timeline
+    const [validationResults, setValidationResults] = useState(null); // Store validation results for selected cabinet
 
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -1549,6 +1551,16 @@ const CabinetDesigner = () => {
 
     const selectedCabinet = cabinets.find(c => c.id === selectedCabinetId);
 
+    // Run validation when selected cabinet changes
+    useEffect(() => {
+        if (selectedCabinet && typeof validateCabinet !== 'undefined') {
+            const results = validateCabinet(selectedCabinet);
+            setValidationResults(results);
+        } else {
+            setValidationResults(null);
+        }
+    }, [selectedCabinet, cabinets]);
+
     // detailed cut list generation (truncated for space - keeping core structure)
     const generateCutList = () => {
     const cutList = [];
@@ -2130,6 +2142,329 @@ const CabinetDesigner = () => {
     );
     };
 
+    // Shopping List Modal Component
+    const ShoppingListModal = () => {
+        if (!showShoppingList) return null;
+        
+        const shoppingList = generateShoppingList(cabinets, materialCosts);
+        
+        const handleExportCSV = () => {
+            const csv = exportShoppingListCSV(shoppingList, projectName);
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${projectName}-shopping-list.csv`;
+            a.click();
+        };
+        
+        const handleExportHTML = () => {
+            const html = exportShoppingListHTML(shoppingList, projectName);
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        };
+        
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.7)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000
+            }}>
+                <div style={{
+                    background: '#1a1a1a',
+                    border: '2px solid #ff6b35',
+                    borderRadius: '8px',
+                    maxWidth: '95vw',
+                    maxHeight: '90vh',
+                    overflow: 'auto',
+                    padding: '24px',
+                    color: '#f0f0f0'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <h2 style={{ margin: 0 }}>Shopping List</h2>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                            <button
+                                onClick={handleExportCSV}
+                                style={{
+                                    background: '#4CAF50',
+                                    color: '#fff',
+                                    border: 'none',
+                                    padding: '8px 16px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                <Download size={16} />
+                                Export CSV
+                            </button>
+                            <button
+                                onClick={handleExportHTML}
+                                style={{
+                                    background: '#2196F3',
+                                    color: '#fff',
+                                    border: 'none',
+                                    padding: '8px 16px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                <FileText size={16} />
+                                Print/View
+                            </button>
+                            <button
+                                onClick={() => setShowShoppingList(false)}
+                                style={{
+                                    background: '#ff6b35',
+                                    color: '#000',
+                                    border: 'none',
+                                    padding: '8px 16px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {/* Summary Card */}
+                    <div style={{
+                        background: 'linear-gradient(135deg, #ff6b35 0%, #ff8855 100%)',
+                        padding: '20px',
+                        borderRadius: '8px',
+                        marginBottom: '24px',
+                        color: '#000'
+                    }}>
+                        <h3 style={{ margin: '0 0 10px 0' }}>Total Estimated Cost</h3>
+                        <div style={{ fontSize: '36px', fontWeight: 'bold' }}>
+                            ${shoppingList.summary.totalCost.toFixed(2)}
+                        </div>
+                        <p style={{ margin: '8px 0 0 0', fontSize: '14px', opacity: 0.9 }}>
+                            Surface area to finish: {shoppingList.finishMaterials.totalSurfaceArea.toFixed(1)} sq ft
+                        </p>
+                    </div>
+                    
+                    {/* Sheet Materials */}
+                    <h3 style={{ color: '#ff6b35', borderBottom: '2px solid #ff6b35', paddingBottom: '8px' }}>
+                        Sheet Materials
+                    </h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '24px' }}>
+                        <thead>
+                            <tr style={{ background: '#ff6b35', color: '#000' }}>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'left' }}>Material</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Total Sq Ft</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'center' }}>Sheets Needed</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'center' }}>Sheet Size</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'center' }}>Waste %</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Cost/Sheet</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Total Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Object.entries(shoppingList.sheetMaterials).map(([material, data]) => (
+                                <tr key={material}>
+                                    <td style={{ border: '1px solid #444', padding: '8px' }}>{material}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>{data.totalArea.toFixed(2)}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>{data.sheets.sheetsNeeded}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'center' }}>{data.sheets.sheetSize}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'center' }}>{data.sheets.wastePercent}%</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>${data.cost.toFixed(2)}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#ff6b35' }}>${data.totalCost.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    
+                    {/* Hardware Section */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                        {/* Hinges */}
+                        {Object.keys(shoppingList.hardware.hinges).length > 0 && (
+                            <div>
+                                <h3 style={{ color: '#ff6b35', borderBottom: '2px solid #ff6b35', paddingBottom: '8px' }}>
+                                    Hinges
+                                </h3>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <thead>
+                                        <tr style={{ background: '#333' }}>
+                                            <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Type</th>
+                                            <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>Qty</th>
+                                            <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>Cost</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Object.entries(shoppingList.hardware.hinges).map(([type, data]) => (
+                                            <tr key={type}>
+                                                <td style={{ border: '1px solid #444', padding: '6px' }}>{type}</td>
+                                                <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>{data.quantity}</td>
+                                                <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right', color: '#ff6b35', fontWeight: 'bold' }}>${data.totalCost.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        
+                        {/* Drawer Slides */}
+                        {Object.keys(shoppingList.hardware.slides).length > 0 && (
+                            <div>
+                                <h3 style={{ color: '#ff6b35', borderBottom: '2px solid #ff6b35', paddingBottom: '8px' }}>
+                                    Drawer Slides
+                                </h3>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <thead>
+                                        <tr style={{ background: '#333' }}>
+                                            <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Type</th>
+                                            <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>Pairs</th>
+                                            <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>Cost</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Object.entries(shoppingList.hardware.slides).map(([type, data]) => (
+                                            <tr key={type}>
+                                                <td style={{ border: '1px solid #444', padding: '6px' }}>{type}</td>
+                                                <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>{data.pairs}</td>
+                                                <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right', color: '#ff6b35', fontWeight: 'bold' }}>${data.totalCost.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        
+                        {/* Pulls & Knobs */}
+                        {Object.keys(shoppingList.hardware.pulls).length > 0 && (
+                            <div>
+                                <h3 style={{ color: '#ff6b35', borderBottom: '2px solid #ff6b35', paddingBottom: '8px' }}>
+                                    Pulls & Knobs
+                                </h3>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <thead>
+                                        <tr style={{ background: '#333' }}>
+                                            <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Type</th>
+                                            <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>Qty</th>
+                                            <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>Cost</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Object.entries(shoppingList.hardware.pulls).map(([type, data]) => (
+                                            <tr key={type}>
+                                                <td style={{ border: '1px solid #444', padding: '6px' }}>{type}</td>
+                                                <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>{data.quantity}</td>
+                                                <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right', color: '#ff6b35', fontWeight: 'bold' }}>${data.totalCost.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Edgebanding */}
+                    <h3 style={{ color: '#ff6b35', borderBottom: '2px solid #ff6b35', paddingBottom: '8px' }}>
+                        Edgebanding
+                    </h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '24px' }}>
+                        <thead>
+                            <tr style={{ background: '#333' }}>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'left' }}>Linear Feet</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'center' }}>Rolls Needed (200' ea)</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Price/Roll</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Total Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style={{ border: '1px solid #444', padding: '8px' }}>{shoppingList.edgebanding.totalLinearFeet.toFixed(1)}</td>
+                                <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>{shoppingList.edgebanding.rollsNeeded}</td>
+                                <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>${EDGEBANDING_SPECS.pricePerRoll.toFixed(2)}</td>
+                                <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#ff6b35' }}>${shoppingList.edgebanding.totalCost.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    {/* Finish Materials */}
+                    <h3 style={{ color: '#ff6b35', borderBottom: '2px solid #ff6b35', paddingBottom: '8px' }}>
+                        Finish Materials
+                    </h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '24px' }}>
+                        <thead>
+                            <tr style={{ background: '#333' }}>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'left' }}>Material</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'center' }}>Gallons</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Price/Gallon</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Total Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Object.entries(shoppingList.finishMaterials.materials).map(([material, data]) => (
+                                <tr key={material}>
+                                    <td style={{ border: '1px solid #444', padding: '8px' }}>{material}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>{data.gallons}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>${data.pricePerGallon.toFixed(2)}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#ff6b35' }}>${data.totalCost.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    
+                    {/* Miscellaneous Supplies */}
+                    <h3 style={{ color: '#ff6b35', borderBottom: '2px solid #ff6b35', paddingBottom: '8px' }}>
+                        Miscellaneous Supplies
+                    </h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '24px' }}>
+                        <thead>
+                            <tr style={{ background: '#333' }}>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'left' }}>Item</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'center' }}>Quantity</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Price Each</th>
+                                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Total Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {Object.entries(shoppingList.miscSupplies).map(([item, data]) => (
+                                <tr key={item}>
+                                    <td style={{ border: '1px solid #444', padding: '8px' }}>{item}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'center' }}>{data.quantity}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>${data.priceEach.toFixed(2)}</td>
+                                    <td style={{ border: '1px solid #444', padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#ff6b35' }}>${data.totalCost.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    
+                    <div style={{
+                        background: '#2a2a2a',
+                        padding: '16px',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        fontStyle: 'italic'
+                    }}>
+                        <strong>Note:</strong> Prices are estimates based on typical retail costs. 
+                        Actual prices may vary by supplier, location, and current market conditions. 
+                        Always verify current pricing before purchasing.
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     // History Timeline Modal
     const HistoryTimelineModal = () => {
         if (!showHistoryTimeline) return null;
@@ -2378,31 +2713,52 @@ const CabinetDesigner = () => {
                 </button>
             </div>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={saveProject} style={buttonStyle}>
-            <Save size={18} />
-            Save
+        <div style={{ display: 'flex', gap: '6px' }}>
+            <button onClick={saveProject} style={{...buttonStyle, padding: '6px 10px'}} title="Save Project">
+            <Save size={16} />
             </button>
-            <button onClick={handleLoadProject} style={buttonStyle}>
-            <FolderOpen size={18} />
-            Load
+            <button onClick={handleLoadProject} style={{...buttonStyle, padding: '6px 10px'}} title="Load Project">
+            <FolderOpen size={16} />
             </button>
-            <button onClick={handleShowSavedProjects} style={buttonStyle}>
-            <FileText size={18} />
-            Projects
+            <button onClick={handleShowSavedProjects} style={{...buttonStyle, padding: '6px 10px'}} title="View All Projects">
+            <FileText size={16} />
             </button>
-            <button onClick={() => setShowCutList(true)} style={buttonStyle}>
-            <FileText size={18} />
-            Cut List
+            <div style={{width: '1px', background: '#333', margin: '0 4px'}}></div>
+            <button onClick={() => setShowCutList(true)} style={{...buttonStyle, padding: '6px 10px'}} title="View Cut List">
+            <FileText size={16} />
             </button>
-            <button onClick={exportCutList} style={buttonStyle}>
-            <Download size={18} />
-            Export
+            <button onClick={() => setShowShoppingList(true)} style={{...buttonStyle, background: '#4CAF50', padding: '6px 10px'}} title="Shopping List">
+            <Download size={16} />
+            </button>
+            <button onClick={exportCutList} style={{...buttonStyle, padding: '6px 10px'}} title="Export CSV">
+            <Download size={16} />
+            </button>
+            <div style={{width: '1px', background: '#333', margin: '0 4px'}}></div>
+            <button onClick={() => {
+                window.exportProjectAsPDF(cabinets, projectName, {
+                    includeCoverPage: true,
+                    includeCutList: true,
+                    includeShoppingList: true,
+                    includeShopDrawings: true
+                });
+            }} style={{...buttonStyle, background: '#2196F3', padding: '6px 10px'}} title="Export PDF with Shop Drawings">
+            <FileText size={16} />
+            </button>
+            <button onClick={() => {
+                window.openPrintPreview(cabinets, projectName, {
+                    includeCoverPage: true,
+                    includeCutList: false,
+                    includeShoppingList: false,
+                    includeShopDrawings: true
+                });
+            }} style={{...buttonStyle, background: '#9C27B0', padding: '6px 10px'}} title="Print Shop Drawings">
+            <FileText size={16} />
             </button>
         </div>
         </div>
 
         <CutListModal />
+        <ShoppingListModal />
         <HistoryTimelineModal />
 
         {/* main content */}
@@ -2686,6 +3042,70 @@ const CabinetDesigner = () => {
             <h3 style={{ marginBottom: '16px', color: '#ff6b35' }}>
                 Cabinet Details
             </h3>
+
+            {/* Validation Results */}
+            {validationResults && (validationResults.errors.length > 0 || validationResults.warnings.length > 0 || validationResults.suggestions.length > 0) && (
+                <div style={{
+                    marginBottom: '16px',
+                    padding: '12px',
+                    background: '#252525',
+                    borderRadius: '4px',
+                    border: validationResults.errors.length > 0 ? '1px solid #ff4444' : '1px solid #333'
+                }}>
+                    <div style={{ 
+                        fontWeight: 'bold', 
+                        marginBottom: '8px',
+                        color: validationResults.errors.length > 0 ? '#ff4444' : '#ff6b35'
+                    }}>
+                        {validationResults.errors.length > 0 ? '🚫 Validation Errors' : validationResults.warnings.length > 0 ? '⚠️ Validation Warnings' : '💡 Suggestions'}
+                    </div>
+                    
+                    {validationResults.errors.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                            {validationResults.errors.map((error, i) => (
+                                <div key={i} style={{ 
+                                    fontSize: '12px', 
+                                    color: '#ff4444',
+                                    marginBottom: '4px',
+                                    lineHeight: '1.4'
+                                }}>
+                                    {error}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    {validationResults.warnings.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                            {validationResults.warnings.map((warning, i) => (
+                                <div key={i} style={{ 
+                                    fontSize: '12px', 
+                                    color: '#ffaa44',
+                                    marginBottom: '4px',
+                                    lineHeight: '1.4'
+                                }}>
+                                    {warning}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    
+                    {validationResults.suggestions.length > 0 && (
+                        <div>
+                            {validationResults.suggestions.map((suggestion, i) => (
+                                <div key={i} style={{ 
+                                    fontSize: '12px', 
+                                    color: '#88ccff',
+                                    marginBottom: '4px',
+                                    lineHeight: '1.4'
+                                }}>
+                                    {suggestion}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div style={inputGroupStyle}>
                 <label style={labelStyle}>Name</label>
