@@ -1045,194 +1045,37 @@ const CabinetDesigner = () => {
         laborRate: laborRate,
         savedAt: new Date().toISOString()
     };
-    const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${projectName}-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    alert('Project saved to file!');
+    localStorage.setItem('cabinetProject', JSON.stringify(project));
+    alert('Project saved!');
     };
 
     const loadProject = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-            const project = JSON.parse(event.target.result);
-            setProjectName(project.name);
-            setCabinets(project.cabinets);
-            setMaterialCosts(project.materialCosts);
-            setLaborRate(project.laborRate || 50);
-            alert('Project loaded successfully!');
-            } catch (error) {
-            alert('Error loading project: Invalid file format');
-            }
-        };
-        reader.readAsText(file);
-        }
-    };
-    input.click();
+    const saved = localStorage.getItem('cabinetProject');
+    if (saved) {
+        const project = JSON.parse(saved);
+        setProjectName(project.name);
+        setCabinets(project.cabinets);
+        setMaterialCosts(project.materialCosts);
+        setLaborRate(project.laborRate || 50);
+        alert('Project loaded!');
+    } else {
+        alert('No saved project found');
+    }
     };
 
     const exportCutList = () => {
     const cutList = generateCutList();
-    
-    // Create HTML for PDF
-    const element = document.createElement('div');
-    element.innerHTML = `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-            <h1 style="text-align: center; margin-bottom: 10px;">CUT LIST</h1>
-            <p style="text-align: center; margin: 5px 0; color: #666;">Project: ${projectName}</p>
-            <p style="text-align: center; margin: 5px 0 20px 0; color: #666;">Date: ${new Date().toLocaleDateString()}</p>
-            
-            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                <thead>
-                    <tr style="background-color: #f0f0f0;">
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Cabinet</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Part</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Qty</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Width (in)</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Height (in)</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Thickness</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Material</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Notes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${cutList.map(item => `
-                        <tr>
-                            <td style="border: 1px solid #ddd; padding: 8px;">${item.cabinet}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px;">${item.part}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.quantity}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.width > 0 ? item.width.toFixed(2) : '-'}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.height > 0 ? item.height.toFixed(2) : '-'}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.thickness > 0 ? item.thickness : '-'}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px;">${item.material}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px;">${item.notes}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-    
-    const options = {
-        margin: 10,
-        filename: `${projectName}-cutlist.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
-    };
-    
-    html2pdf().set(options).from(element).save();
-    };
+    let csv = 'Cabinet,Part,Quantity,Width (in),Height (in),Thickness (in),Material,Notes\n';
+    cutList.forEach(item => {
+        csv += `${item.cabinet},${item.part},${item.quantity},${item.width > 0 ? item.width.toFixed(2) : '-'},${item.height > 0 ? item.height.toFixed(2) : '-'},${item.thickness > 0 ? item.thickness : '-'},${item.material},"${item.notes}"\n`;
+    });
 
-    const exportPricingList = () => {
-    const materials = calculateMaterials();
-    const cutList = generateCutList();
-    
-    let materialTotal = 0;
-    const materialRows = Object.keys(materials).map(material => {
-        const data = materials[material];
-        materialTotal += data.cost || 0;
-        return `
-            <tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">${material}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${data.sheets}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">$${(materialCosts[material] || 0).toFixed(2)}</td>
-                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">$${(data.cost || 0).toFixed(2)}</td>
-            </tr>
-        `;
-    }).join('');
-    
-    const hardwareEstimate = cabinets.length * 200;
-    const laborHours = cabinets.length * 8;
-    const laborCost = laborHours * laborRate;
-    const totalCost = materialTotal + hardwareEstimate + laborCost;
-    
-    const element = document.createElement('div');
-    element.innerHTML = `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-            <h1 style="text-align: center; margin-bottom: 10px;">PRICING & MATERIAL ESTIMATE</h1>
-            <p style="text-align: center; margin: 5px 0; color: #666;">Project: ${projectName}</p>
-            <p style="text-align: center; margin: 5px 0 20px 0; color: #666;">Date: ${new Date().toLocaleDateString()}</p>
-            
-            <h2 style="margin-top: 20px; margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 5px;">MATERIALS</h2>
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="background-color: #f0f0f0;">
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Material</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Sheets</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Unit Cost</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: right;">Total Cost</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${materialRows}
-                    <tr style="background-color: #f9f9f9; font-weight: bold;">
-                        <td colspan="3" style="border: 1px solid #ddd; padding: 8px; text-align: right;">Material Subtotal:</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">$${materialTotal.toFixed(2)}</td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <h2 style="margin-top: 20px; margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 5px;">HARDWARE</h2>
-            <table style="width: 100%; border-collapse: collapse;">
-                <tbody>
-                    <tr>
-                        <td style="border: 1px solid #ddd; padding: 8px;">Hinges, Slides, Pulls (Estimated)</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">$${hardwareEstimate.toFixed(2)}</td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <h2 style="margin-top: 20px; margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 5px;">LABOR</h2>
-            <table style="width: 100%; border-collapse: collapse;">
-                <tbody>
-                    <tr>
-                        <td style="border: 1px solid #ddd; padding: 8px;">Estimated Hours: ${laborHours}</td>
-                        <td style="border: 1px solid #ddd; padding: 8px;">Rate: $${laborRate}/hr</td>
-                        <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold;">$${laborCost.toFixed(2)}</td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <div style="margin-top: 30px; padding: 15px; background-color: #f0f0f0; border: 2px solid #333;">
-                <h3 style="margin: 0 0 10px 0; font-size: 18px;">TOTAL PROJECT COST: $${totalCost.toFixed(2)}</h3>
-                <p style="margin: 5px 0; color: #666; font-size: 12px;">Materials: $${materialTotal.toFixed(2)} + Hardware: $${hardwareEstimate.toFixed(2)} + Labor: $${laborCost.toFixed(2)}</p>
-            </div>
-        </div>
-    `;
-    
-    const options = {
-        margin: 10,
-        filename: `${projectName}-pricing.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
-    };
-    
-    html2pdf().set(options).from(element).save();
-    };
-
-    const exportBlueprints = () => {
-    if (!rendererRef.current || !canvasRef.current) {
-        alert('No 3D view to export. Create a cabinet first!');
-        return;
-    }
-    
-    const link = document.createElement('a');
-    link.download = `${projectName}-3d-view.png`;
-    link.href = canvasRef.current.toDataURL();
-    link.click();
-    alert('3D view exported as PNG!');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName}-cutlist.csv`;
+    a.click();
     };
 
     return (
@@ -1281,15 +1124,7 @@ const CabinetDesigner = () => {
             </button>
             <button onClick={exportCutList} style={buttonStyle}>
             <Download size={18} />
-            Cut List
-            </button>
-            <button onClick={exportPricingList} style={buttonStyle}>
-            <DollarSign size={18} />
-            Pricing
-            </button>
-            <button onClick={exportBlueprints} style={buttonStyle}>
-            <Camera size={18} />
-            Screenshot
+            Export
             </button>
         </div>
         </div>
