@@ -7,6 +7,12 @@ function parseFraction(input) {
     
     input = String(input).trim();
     
+    // Remove any double quote marks
+    input = input.replace(/"/g, '').trim();
+    
+    // Handle empty input
+    if (input === '') return 0;
+    
     // Handle decimal input
     if (!isNaN(input)) return parseFloat(input);
     
@@ -31,23 +37,19 @@ function parseFraction(input) {
     return parseFloat(input) || 0;
 }
 
-// Converts decimal inches to feet and fractional inches (down to 16ths)
+// Converts decimal inches to fractional inches (down to 32nds)
 function decimalToFraction(decimal) {
-    const feet = Math.floor(decimal / 12);
-    const remainingInches = decimal % 12;
-    const wholeInches = Math.floor(remainingInches);
-    const fraction = remainingInches - wholeInches;
+    const wholeInches = Math.floor(decimal);
+    const fraction = decimal - wholeInches;
     
-    // Convert to 16ths
-    const sixteenths = Math.round(fraction * 16);
+    // Convert to 32nds
+    const thirtySeconds = Math.round(fraction * 32);
     
     // Simplify fraction
-    let num = sixteenths;
-    let den = 16;
+    let num = thirtySeconds;
+    let den = 32;
     
     if (num === 0) {
-        if (feet > 0 && wholeInches > 0) return `${feet}' ${wholeInches}"`;
-        if (feet > 0) return `${feet}'`;
         if (wholeInches > 0) return `${wholeInches}"`;
         return '0"';
     }
@@ -59,8 +61,7 @@ function decimalToFraction(decimal) {
     den = den / divisor;
     
     let result = '';
-    if (feet > 0) result += `${feet}' `;
-    if (wholeInches > 0 || feet > 0) result += `${wholeInches}`;
+    if (wholeInches > 0) result += `${wholeInches}`;
     if (num > 0) {
         if (wholeInches > 0) result += ` ${num}/${den}"`;
         else result += `${num}/${den}"`;
@@ -69,6 +70,13 @@ function decimalToFraction(decimal) {
     }
     
     return result.trim();
+}
+
+// Formats measurement as: fraction (decimal)
+function formatMeasurement(decimal) {
+    if (decimal <= 0) return '0"';
+    const fraction = decimalToFraction(decimal);
+    return `${fraction} (${decimal.toFixed(3)}")`;
 }
 
 // construction specs
@@ -90,6 +98,90 @@ const DRAWER_BOX = {
 const HINGE_TYPES = ['Concealed (Blum)', 'Concealed (Grass)', 'European', 'Butt Hinge'];
 const SLIDE_TYPES = ['Undermount (Blum)', 'Side Mount', 'Center Mount', 'Soft-Close'];
 const PULL_TYPES = ['Bar Pull', 'Cup Pull', 'Knob', 'Edge Pull', 'Recessed'];
+
+// ========== CABINET DATA STRUCTURE ==========
+class CabinetComponent {
+    constructor(width, height, depth, material = 'Oak', thickness = 0.75) {
+        this.width = width;           // inches
+        this.height = height;         // inches
+        this.depth = depth;           // inches
+        this.material = material;     // wood type
+        this.thickness = thickness;   // inches
+    }
+}
+
+class Drawer {
+    constructor(width, height, depth, material = 'Oak', thickness = 0.5) {
+        this.width = width;
+        this.height = height;
+        this.depth = depth;
+        this.material = material;
+        this.thickness = thickness;
+        this.slide = SLIDE_TYPES[0];  // default to first slide type
+        this.pull = PULL_TYPES[0];    // default to first pull type
+    }
+}
+
+class Door {
+    constructor(width, height, depth, material = 'Oak', thickness = 0.75, doorType = 'shaker') {
+        this.width = width;
+        this.height = height;
+        this.depth = depth;
+        this.material = material;
+        this.thickness = thickness;
+        this.doorType = doorType;     // 'shaker', 'flat', 'raised', 'glass'
+        this.hinge = HINGE_TYPES[0];  // default to first hinge type
+        this.pull = PULL_TYPES[0];    // default to first pull type
+    }
+}
+
+class Cabinet {
+    constructor(cabinetWidth, cabinetHeight, cabinetDepth) {
+        this.width = cabinetWidth;
+        this.height = cabinetHeight;
+        this.depth = cabinetDepth;
+        
+        // Cabinet components
+        this.sides = {
+            left: new CabinetComponent(cabinetWidth, cabinetHeight, cabinetDepth),
+            right: new CabinetComponent(cabinetWidth, cabinetHeight, cabinetDepth)
+        };
+        
+        this.back = new CabinetComponent(cabinetWidth, cabinetHeight, 0.25);
+        this.drawers = [];  // array of Drawer objects
+        this.door = null;   // single Door object or null
+    }
+    
+    addDrawer(width, height, depth, material = 'Oak', thickness = 0.5) {
+        const drawer = new Drawer(width, height, depth, material, thickness);
+        this.drawers.push(drawer);
+        return drawer;
+    }
+    
+    removeDrawer(index) {
+        if (index >= 0 && index < this.drawers.length) {
+            this.drawers.splice(index, 1);
+        }
+    }
+    
+    setDoor(width, height, depth, material = 'Oak', thickness = 0.75, doorType = 'shaker') {
+        this.door = new Door(width, height, depth, material, thickness, doorType);
+        return this.door;
+    }
+    
+    removeDoor() {
+        this.door = null;
+    }
+    
+    updateSides(width, height, depth, material, thickness) {
+        this.sides.left = new CabinetComponent(width, height, depth, material, thickness);
+        this.sides.right = new CabinetComponent(width, height, depth, material, thickness);
+    }
+    
+    updateBack(width, height, material, thickness = 0.25) {
+        this.back = new CabinetComponent(width, height, thickness, material, thickness);
+    }
+}
 
 // construction types
 const CONSTRUCTION_TYPES = {
@@ -1551,8 +1643,8 @@ const CabinetDesigner = () => {
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.cabinet}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.part}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.quantity}</td>
-                    <td style="border: 1px solid #ddd; padding: 6px;">${item.width > 0 ? item.width.toFixed(2) + '"' : '-'}</td>
-                    <td style="border: 1px solid #ddd; padding: 6px;">${item.height > 0 ? item.height.toFixed(2) + '"' : '-'}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.width > 0 ? formatMeasurement(item.width) : '-'}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.height > 0 ? formatMeasurement(item.height) : '-'}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.thickness > 0 ? item.thickness : '-'}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.material}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.notes}</td>
@@ -1576,7 +1668,7 @@ const CabinetDesigner = () => {
     const cutList = generateCutList();
     let csv = 'Cabinet,Part,Quantity,Width (in),Height (in),Thickness (in),Material,Notes\n';
     cutList.forEach(item => {
-        csv += `${item.cabinet},${item.part},${item.quantity},${item.width > 0 ? item.width.toFixed(2) : '-'},${item.height > 0 ? item.height.toFixed(2) : '-'},${item.thickness > 0 ? item.thickness : '-'},${item.material},"${item.notes}"\n`;
+        csv += `${item.cabinet},${item.part},${item.quantity},${item.width > 0 ? formatMeasurement(item.width) : '-'},${item.height > 0 ? formatMeasurement(item.height) : '-'},${item.thickness > 0 ? item.thickness : '-'},${item.material},"${item.notes}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -1676,8 +1768,8 @@ const CabinetDesigner = () => {
                     <td style={{ border: '1px solid #444', padding: '6px' }}>{item.cabinet}</td>
                     <td style={{ border: '1px solid #444', padding: '6px' }}>{item.part}</td>
                     <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>{item.quantity}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.width > 0 ? item.width.toFixed(2) + '"' : '-'}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.height > 0 ? item.height.toFixed(2) + '"' : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.width > 0 ? formatMeasurement(item.width) : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.height > 0 ? formatMeasurement(item.height) : '-'}</td>
                     <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.thickness > 0 ? item.thickness : '-'}</td>
                     <td style={{ border: '1px solid #444', padding: '6px' }}>{item.material}</td>
                     <td style={{ border: '1px solid #444', padding: '6px', fontSize: '11px' }}>{item.notes}</td>
@@ -1884,8 +1976,8 @@ const CabinetDesigner = () => {
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.cabinet}</td>
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.part}</td>
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.quantity}</td>
-                            <td style={{...tableCellStyle, fontSize: '11px'}}>{item.width > 0 ? `${item.width.toFixed(2)}"` : '-'}</td>
-                            <td style={{...tableCellStyle, fontSize: '11px'}}>{item.height > 0 ? `${item.height.toFixed(2)}"` : '-'}</td>
+                            <td style={{...tableCellStyle, fontSize: '11px'}}>{item.width > 0 ? formatMeasurement(item.width) : '-'}</td>
+                            <td style={{...tableCellStyle, fontSize: '11px'}}>{item.height > 0 ? formatMeasurement(item.height) : '-'}</td>
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.thickness > 0 ? `${item.thickness}"` : '-'}</td>
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.material}</td>
                             <td style={{...tableCellStyle, fontSize: '10px', color: '#aaa'}}>{item.notes}</td>
@@ -2002,34 +2094,37 @@ const CabinetDesigner = () => {
             <div style={inputGroupStyle}>
                 <label style={labelStyle}>Width</label>
                 <input
-                type="number"
-                max="168"
-                value={selectedCabinet.width}
-                onChange={(e) => updateCabinet(selectedCabinet.id, 'width', parseFloat(e.target.value))}
+                type="text"
+                placeholder="36 or 36 3/4 or 3/4"
+                value={decimalToFraction(selectedCabinet.width)}
+                onChange={(e) => updateCabinet(selectedCabinet.id, 'width', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.width)}</div>
             </div>
 
             <div style={inputGroupStyle}>
                 <label style={labelStyle}>Height</label>
                 <input
-                type="number"
-                max="84"
-                value={selectedCabinet.height}
-                onChange={(e) => updateCabinet(selectedCabinet.id, 'height', parseFloat(e.target.value))}
+                type="text"
+                placeholder="36 or 36 3/4 or 3/4"
+                value={decimalToFraction(selectedCabinet.height)}
+                onChange={(e) => updateCabinet(selectedCabinet.id, 'height', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.height)}</div>
             </div>
 
             <div style={inputGroupStyle}>
                 <label style={labelStyle}>Depth</label>
                 <input
-                type="number"
-                max="120"
-                value={selectedCabinet.depth}
-                onChange={(e) => updateCabinet(selectedCabinet.id, 'depth', parseFloat(e.target.value))}
+                type="text"
+                placeholder="24 or 24 3/4 or 3/4"
+                value={decimalToFraction(selectedCabinet.depth)}
+                onChange={(e) => updateCabinet(selectedCabinet.id, 'depth', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.depth)}</div>
             </div>
 
             <div className="section-header">CONSTRUCTION</div>
@@ -2093,27 +2188,27 @@ const CabinetDesigner = () => {
             </div>
 
             <div style={inputGroupStyle}>
-                <label style={labelStyle}>Door/Drawer Gap (inches)</label>
+                <label style={labelStyle}>Door/Drawer Gap</label>
                 <input
-                type="number"
-                min="0"
-                step="0.125"
-                value={selectedCabinet.doorDrawerGap}
-                onChange={(e) => updateCabinet(selectedCabinet.id, 'doorDrawerGap', parseFloat(e.target.value))}
+                type="text"
+                placeholder="1/8 or 0.125"
+                value={decimalToFraction(selectedCabinet.doorDrawerGap)}
+                onChange={(e) => updateCabinet(selectedCabinet.id, 'doorDrawerGap', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.doorDrawerGap)}</div>
             </div>
 
             <div style={inputGroupStyle}>
-                <label style={labelStyle}>Door/Drawer Overhang (inches)</label>
+                <label style={labelStyle}>Door/Drawer Overhang</label>
                 <input
-                type="number"
-                min="0"
-                step="0.125"
-                value={selectedCabinet.doorOverhang}
-                onChange={(e) => updateCabinet(selectedCabinet.id, 'doorOverhang', parseFloat(e.target.value))}
+                type="text"
+                placeholder="1/2 or 0.5"
+                value={decimalToFraction(selectedCabinet.doorOverhang)}
+                onChange={(e) => updateCabinet(selectedCabinet.id, 'doorOverhang', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.doorOverhang)}</div>
             </div>
 
             {selectedCabinet.doors > 0 && (
