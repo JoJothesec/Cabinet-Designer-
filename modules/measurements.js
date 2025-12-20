@@ -207,7 +207,5 @@ function formatMeasurement(decimal) {
     return `${fraction} (${decimal.toFixed(3)}")`;
 }
 
-// EXPORT THESE FUNCTIONS
-// This makes these functions available to other files that need them
-// When another file wants to use these, it will "import" them
-export { parseFraction, decimalToFraction, formatMeasurement };
+// These functions are now globally available when this script loads
+// Other scripts loaded after this one can use: parseFraction, decimalToFraction, formatMeasurement

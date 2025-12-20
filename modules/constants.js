@@ -226,14 +226,6 @@ const CONSTRUCTION_TYPES = {
     }
 };
 
-// EXPORT ALL CONSTANTS
-// This makes all these specifications available to other files
-// Other files can import just what they need
-export { 
-    DOOR_SPECS,           // Door style specifications
-    DRAWER_BOX,           // Drawer box dimensions
-    HINGE_TYPES,          // Available hinge options
-    SLIDE_TYPES,          // Available slide options
-    PULL_TYPES,           // Available pull options
-    CONSTRUCTION_TYPES    // Construction method options
-};
+// These constants are now globally available when this script loads
+// Other scripts loaded after this one can use:
+// DOOR_SPECS, DRAWER_BOX, HINGE_TYPES, SLIDE_TYPES, PULL_TYPES, CONSTRUCTION_TYPES

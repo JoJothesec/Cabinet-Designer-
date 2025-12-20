@@ -225,12 +225,6 @@ const deleteProjectFromStorage = (projectName) => {
     localStorage.setItem('cabinetProjects', JSON.stringify(savedProjects));
 };
 
-// EXPORT ALL FUNCTIONS
-// This makes these functions available to other files that need to
-// save and load projects
-export {
-    saveProjectToStorage,      // Save a project
-    loadProjectFromStorage,    // Load a specific project
-    getAllSavedProjects,       // Get list of all projects
-    deleteProjectFromStorage   // Delete a project
-};
+// These functions are now globally available when this script loads
+// Other scripts loaded after this one can use:
+// saveProjectToStorage, loadProjectFromStorage, getAllSavedProjects, deleteProjectFromStorage

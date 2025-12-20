@@ -30,10 +30,14 @@
     <!-- Load html2pdf for exporting designs as PDF documents -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
-    <!-- Load the main application script (with module support) -->
-    <!-- type="text/babel" tells Babel to process this JavaScript -->
-    <!-- The modules="true" attribute would be needed for true ES6 modules, -->
-    <!-- but Babel handles the module syntax transformation for us -->
+    <!-- Load application modules in order (these must load before scripts.js) -->
+    <script type="text/babel" src="modules/measurements.js"></script>
+    <script type="text/babel" src="modules/constants.js"></script>
+    <script type="text/babel" src="modules/cabinetClasses.js"></script>
+    <script type="text/babel" src="modules/icons.js"></script>
+    <script type="text/babel" src="modules/projectManager.js"></script>
+    
+    <!-- Load the main application script -->
     <script type="text/babel" src="scripts.js"></script>
 </body>
 </html>

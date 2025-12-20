@@ -195,17 +195,6 @@ const DollarSign = ({ size = 24, color = "currentColor" }) => (
     </svg>
 );
 
-// EXPORT ALL ICONS
-// This makes all these icon components available to other files
-export { 
-    Camera,      // Screenshot/capture icon
-    Box,         // 3D/cabinet view icon
-    Ruler,       // Measurements icon
-    FileText,    // Document/cut list icon
-    Download,    // Export/download icon
-    Plus,        // Add new item icon
-    Trash2,      // Delete icon
-    Save,        // Save project icon
-    FolderOpen,  // Load project icon
-    DollarSign   // Cost/pricing icon
-};
+// These icon components are now globally available when this script loads
+// Other scripts loaded after this one can use:
+// Camera, Box, Ruler, FileText, Download, Plus, Trash2, Save, FolderOpen, DollarSign

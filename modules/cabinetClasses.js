@@ -24,15 +24,15 @@
  * 
  * DEPENDENCIES (what this file needs):
  * - constants.js (for default hardware types like hinges and slides)
+ *   Must be loaded BEFORE this file via <script> tag in index.html
  * 
  * USED BY (what files need this one):
  * - CabinetDesigner.js (creates actual cabinets using these blueprints)
  * - projectManager.js (saves and loads cabinet data)
  */
 
-// Import the hardware options from the constants file
-// This gives us access to the lists of available hinges, slides, and pulls
-import { HINGE_TYPES, SLIDE_TYPES, PULL_TYPES } from './constants.js';
+// NOTE: Hardware options (HINGE_TYPES, SLIDE_TYPES, PULL_TYPES) are loaded
+// globally from constants.js which is loaded before this file in index.html
 
 /**
  * CabinetComponent Class
@@ -403,7 +403,5 @@ class Cabinet {
     }
 }
 
-// EXPORT ALL CLASSES
-// This makes these blueprints available to other files that need to create
-// cabinets, drawers, or doors
-export { CabinetComponent, Drawer, Door, Cabinet };
+// These classes are now globally available when this script loads
+// Other scripts loaded after this one can use: CabinetComponent, Drawer, Door, Cabinet
