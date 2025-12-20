@@ -399,6 +399,7 @@ const CabinetDesigner = () => {
         // Load measurement preference from localStorage, default to 'both'
         return localStorage.getItem('measurementFormat') || 'both';
     });
+    const [showHistoryTimeline, setShowHistoryTimeline] = useState(false); // Show/hide history timeline
 
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -409,6 +410,8 @@ const CabinetDesigner = () => {
     const woodTextureCache = useRef({});
     const raycaster = useRef(new THREE.Raycaster());
     const mouse = useRef(new THREE.Vector2());
+    const historyManager = useRef(new window.HistoryManager()); // History manager for undo/redo
+    const isRestoringHistory = useRef(false); // Flag to prevent circular history updates
 
     const isDragging = useRef(false);
     const previousMousePosition = useRef({ x: 0, y: 0 });
@@ -1155,16 +1158,103 @@ const CabinetDesigner = () => {
     };
 
     const handleAddCabinet = () => {
-    const newCabinet = createNewCabinet();
-    setCabinets([...cabinets, newCabinet]);
-    setSelectedCabinetId(newCabinet.id);
+        const newCabinet = createNewCabinet();
+        const newCabinets = [...cabinets, newCabinet];
+        setCabinets(newCabinets);
+        setSelectedCabinetId(newCabinet.id);
+        
+        // Save to history
+        setTimeout(() => {
+            if (!isRestoringHistory.current) {
+                saveStateToHistory(`Added ${newCabinet.name}`);
+            }
+        }, 10);
     };
 
     const handleDeleteCabinet = (id) => {
-    setCabinets(cabinets.filter(c => c.id !== id));
-    if (selectedCabinetId === id) {
-        setSelectedCabinetId(null);
-    }
+        const deletedCabinet = cabinets.find(c => c.id === id);
+        const cabinetName = deletedCabinet ? deletedCabinet.name : 'Cabinet';
+        const newCabinets = cabinets.filter(c => c.id !== id);
+        setCabinets(newCabinets);
+        
+        if (selectedCabinetId === id) {
+            setSelectedCabinetId(null);
+        }
+        
+        // Save to history
+        setTimeout(() => {
+            if (!isRestoringHistory.current) {
+                saveStateToHistory(`Deleted ${cabinetName}`);
+            }
+        }, 10);
+    };
+
+    // Undo/Redo handlers
+    const saveStateToHistory = (description) => {
+        if (isRestoringHistory.current) return;
+        
+        const state = {
+            cabinets,
+            selectedCabinetId,
+            selectedDrawerId,
+            selectedDoorIndex,
+            hiddenDoors: Array.from(hiddenDoors),
+            hiddenDrawers: Array.from(hiddenDrawers),
+            projectName,
+            materialCosts,
+            laborRate
+        };
+        
+        historyManager.current.pushState(state, description);
+    };
+
+    const handleUndo = () => {
+        if (!historyManager.current.canUndo()) return;
+        
+        isRestoringHistory.current = true;
+        const previousState = historyManager.current.undo();
+        
+        if (previousState) {
+            restoreState(previousState);
+        }
+        
+        isRestoringHistory.current = false;
+    };
+
+    const handleRedo = () => {
+        if (!historyManager.current.canRedo()) return;
+        
+        isRestoringHistory.current = true;
+        const nextState = historyManager.current.redo();
+        
+        if (nextState) {
+            restoreState(nextState);
+        }
+        
+        isRestoringHistory.current = false;
+    };
+
+    const restoreState = (state) => {
+        setCabinets(state.cabinets);
+        setSelectedCabinetId(state.selectedCabinetId);
+        setSelectedDrawerId(state.selectedDrawerId);
+        setSelectedDoorIndex(state.selectedDoorIndex);
+        setHiddenDoors(new Set(state.hiddenDoors));
+        setHiddenDrawers(new Set(state.hiddenDrawers));
+        setProjectName(state.projectName);
+        setMaterialCosts(state.materialCosts);
+        setLaborRate(state.laborRate);
+    };
+
+    const handleJumpToHistory = (index) => {
+        isRestoringHistory.current = true;
+        const state = historyManager.current.jumpTo(index);
+        
+        if (state) {
+            restoreState(state);
+        }
+        
+        isRestoringHistory.current = false;
     };
 
     // Calculate maximum doors that can fit based on cabinet width
@@ -1176,7 +1266,7 @@ const CabinetDesigner = () => {
     };
 
     const updateCabinet = (id, property, value) => {
-    setCabinets(cabinets.map(c => {
+    const newCabinets = cabinets.map(c => {
         if (c.id === id) {
         // If updating doors, validate against cabinet width or double door limit
         if (property === 'doors') {
@@ -1206,12 +1296,23 @@ const CabinetDesigner = () => {
         return { ...c, [property]: value };
         }
         return c;
-    }));
+    });
+    
+    setCabinets(newCabinets);
+    
+    // Save to history
+    setTimeout(() => {
+        if (!isRestoringHistory.current) {
+            const cabinet = newCabinets.find(c => c.id === id);
+            const propName = property.charAt(0).toUpperCase() + property.slice(1);
+            saveStateToHistory(`Updated ${cabinet?.name || 'cabinet'}: ${propName}`);
+        }
+    }, 10);
     };
 
     // add drawer at specific position
     const addDrawer = (cabinetId) => {
-    setCabinets(cabinets.map(c => {
+    const newCabinets = cabinets.map(c => {
         if (c.id === cabinetId) {
         const doorStartY = c.toekick ? c.toekickHeight : 0;
         const existingDrawers = c.drawers || [];
@@ -1234,11 +1335,21 @@ const CabinetDesigner = () => {
         return { ...c, drawers: [...existingDrawers, newDrawer] };
         }
         return c;
-    }));
+    });
+    
+    setCabinets(newCabinets);
+    
+    // Save to history
+    setTimeout(() => {
+        if (!isRestoringHistory.current) {
+            const cabinet = newCabinets.find(c => c.id === cabinetId);
+            saveStateToHistory(`Added drawer to ${cabinet?.name || 'cabinet'}`);
+        }
+    }, 10);
     };
 
     const updateDrawer = (cabinetId, drawerId, property, value) => {
-    setCabinets(cabinets.map(c => {
+    const newCabinets = cabinets.map(c => {
         if (c.id === cabinetId) {
         const numValue = parseFloat(value);
         const updatedDrawers = c.drawers.map(d => {
@@ -1270,16 +1381,36 @@ const CabinetDesigner = () => {
         return { ...c, drawers: updatedDrawers };
         }
         return c;
-    }));
+    });
+    
+    setCabinets(newCabinets);
+    
+    // Save to history
+    setTimeout(() => {
+        if (!isRestoringHistory.current) {
+            const cabinet = newCabinets.find(c => c.id === cabinetId);
+            saveStateToHistory(`Updated drawer in ${cabinet?.name || 'cabinet'}`);
+        }
+    }, 10);
     };
 
     const deleteDrawer = (cabinetId, drawerId) => {
-    setCabinets(cabinets.map(c => {
+    const newCabinets = cabinets.map(c => {
         if (c.id === cabinetId) {
         return { ...c, drawers: c.drawers.filter(d => d.id !== drawerId) };
         }
         return c;
-    }));
+    });
+    
+    setCabinets(newCabinets);
+    
+    // Save to history
+    setTimeout(() => {
+        if (!isRestoringHistory.current) {
+            const cabinet = newCabinets.find(c => c.id === cabinetId);
+            saveStateToHistory(`Deleted drawer from ${cabinet?.name || 'cabinet'}`);
+        }
+    }, 10);
     };
 
     const selectedCabinet = cabinets.find(c => c.id === selectedCabinetId);
@@ -1565,6 +1696,38 @@ const CabinetDesigner = () => {
     }
     };
 
+    // Handle delete for keyboard shortcuts
+    const handleDelete = () => {
+        if (selectedDrawerId) {
+            // Delete selected drawer
+            const cabinet = cabinets.find(c => c.id === selectedCabinetId);
+            if (cabinet) {
+                removeDrawer(selectedCabinetId, selectedDrawerId);
+            }
+        } else if (selectedDoorIndex !== null && selectedCabinetId) {
+            // Can't delete individual doors, but deselect
+            setSelectedDoorIndex(null);
+        } else if (selectedCabinetId) {
+            // Delete selected cabinet
+            if (confirm('Delete this cabinet?')) {
+                handleDeleteCabinet(selectedCabinetId);
+            }
+        }
+    };
+
+    // Handle cycling measurement format
+    const handleCycleMeasurement = () => {
+        const formats = ['both', 'fraction', 'decimal'];
+        const currentIndex = formats.indexOf(measurementFormat);
+        const nextIndex = (currentIndex + 1) % formats.length;
+        setMeasurementFormat(formats[nextIndex]);
+    };
+
+    // Handle zoom from keyboard
+    const handleZoom = (delta) => {
+        cameraDistance.current = Math.max(20, Math.min(200, cameraDistance.current + delta));
+    };
+
     const handleLoadProject = () => {
     const allProjects = getAllSavedProjects();
     
@@ -1833,6 +1996,175 @@ const CabinetDesigner = () => {
     );
     };
 
+    // History Timeline Modal
+    const HistoryTimelineModal = () => {
+        if (!showHistoryTimeline) return null;
+        
+        const timeline = historyManager.current.getTimeline();
+        
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: '350px',
+                background: '#1a1a1a',
+                borderLeft: '2px solid #ff6b35',
+                zIndex: 1000,
+                display: 'flex',
+                flexDirection: 'column',
+                color: '#f0f0f0'
+            }}>
+                <div style={{
+                    padding: '16px',
+                    background: '#0a0a0a',
+                    borderBottom: '2px solid #ff6b35',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Clock size={20} color="#ff6b35" />
+                        History Timeline
+                    </h3>
+                    <button
+                        onClick={() => setShowHistoryTimeline(false)}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '24px',
+                            padding: '4px'
+                        }}
+                    >
+                        ×
+                    </button>
+                </div>
+                
+                <div style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: '16px'
+                }}>
+                    {timeline.length === 0 ? (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '32px 16px',
+                            color: '#666',
+                            fontSize: '14px'
+                        }}>
+                            No history yet.<br/>Make changes to see them here.
+                        </div>
+                    ) : (
+                        <div style={{ position: 'relative' }}>
+                            {/* Timeline line */}
+                            <div style={{
+                                position: 'absolute',
+                                left: '11px',
+                                top: '0',
+                                bottom: '0',
+                                width: '2px',
+                                background: '#333'
+                            }}></div>
+                            
+                            {timeline.map((entry, idx) => {
+                                const date = new Date(entry.timestamp);
+                                const timeStr = date.toLocaleTimeString('en-US', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                });
+                                
+                                return (
+                                    <div
+                                        key={idx}
+                                        onClick={() => handleJumpToHistory(entry.index)}
+                                        style={{
+                                            position: 'relative',
+                                            paddingLeft: '32px',
+                                            paddingBottom: '16px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {/* Timeline dot */}
+                                        <div style={{
+                                            position: 'absolute',
+                                            left: '6px',
+                                            top: '4px',
+                                            width: '12px',
+                                            height: '12px',
+                                            borderRadius: '50%',
+                                            background: entry.isCurrent ? '#ff6b35' : '#666',
+                                            border: entry.isCurrent ? '3px solid #fff' : '2px solid #333',
+                                            boxSizing: 'border-box'
+                                        }}></div>
+                                        
+                                        {/* Entry content */}
+                                        <div style={{
+                                            background: entry.isCurrent ? '#2a2a2a' : '#1f1f1f',
+                                            padding: '8px 12px',
+                                            borderRadius: '6px',
+                                            border: entry.isCurrent ? '1px solid #ff6b35' : '1px solid #333',
+                                            ':hover': {
+                                                background: '#2a2a2a'
+                                            }
+                                        }}>
+                                            <div style={{
+                                                fontWeight: entry.isCurrent ? 'bold' : 'normal',
+                                                marginBottom: '4px',
+                                                color: entry.isCurrent ? '#ff6b35' : '#f0f0f0'
+                                            }}>
+                                                {entry.description}
+                                                {entry.isCurrent && (
+                                                    <span style={{
+                                                        marginLeft: '8px',
+                                                        fontSize: '10px',
+                                                        background: '#ff6b35',
+                                                        color: '#000',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '3px',
+                                                        fontWeight: 'bold'
+                                                    }}>
+                                                        CURRENT
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div style={{
+                                                fontSize: '11px',
+                                                color: '#888'
+                                            }}>
+                                                {timeStr}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+                
+                <div style={{
+                    padding: '12px 16px',
+                    background: '#0a0a0a',
+                    borderTop: '1px solid #333',
+                    fontSize: '12px',
+                    color: '#666'
+                }}>
+                    {timeline.length > 0 && (
+                        <div>
+                            {historyManager.current.currentIndex + 1} of {timeline.length} states
+                        </div>
+                    )}
+                    <div style={{ marginTop: '4px' }}>
+                        Click any state to jump to it
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
     <div style={{
         width: '100vw',
@@ -1867,6 +2199,50 @@ const CabinetDesigner = () => {
                 outline: 'none'
             }}
             />
+            
+            {/* Undo/Redo buttons */}
+            <div style={{ display: 'flex', gap: '4px', marginLeft: '16px' }}>
+                <button 
+                    onClick={handleUndo} 
+                    disabled={!historyManager.current.canUndo()}
+                    title={historyManager.current.canUndo() ? `Undo: ${historyManager.current.getUndoDescription()}` : 'Nothing to undo'}
+                    style={{
+                        ...buttonStyle,
+                        padding: '6px 12px',
+                        opacity: historyManager.current.canUndo() ? 1 : 0.4,
+                        cursor: historyManager.current.canUndo() ? 'pointer' : 'not-allowed'
+                    }}
+                >
+                    <RotateCcw size={16} />
+                    Undo
+                </button>
+                <button 
+                    onClick={handleRedo} 
+                    disabled={!historyManager.current.canRedo()}
+                    title={historyManager.current.canRedo() ? `Redo: ${historyManager.current.getRedoDescription()}` : 'Nothing to redo'}
+                    style={{
+                        ...buttonStyle,
+                        padding: '6px 12px',
+                        opacity: historyManager.current.canRedo() ? 1 : 0.4,
+                        cursor: historyManager.current.canRedo() ? 'pointer' : 'not-allowed'
+                    }}
+                >
+                    <RotateCw size={16} />
+                    Redo
+                </button>
+                <button 
+                    onClick={() => setShowHistoryTimeline(!showHistoryTimeline)}
+                    style={{
+                        ...buttonStyle,
+                        padding: '6px 12px',
+                        background: showHistoryTimeline ? '#666' : '#ff6b35'
+                    }}
+                    title="Show history timeline"
+                >
+                    <Clock size={16} />
+                    History
+                </button>
+            </div>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
             <button onClick={saveProject} style={buttonStyle}>
@@ -1893,6 +2269,7 @@ const CabinetDesigner = () => {
         </div>
 
         <CutListModal />
+        <HistoryTimelineModal />
 
         {/* main content */}
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -2648,6 +3025,22 @@ const CabinetDesigner = () => {
             </div>
             )}
         </div>
+
+        {/* Keyboard Shortcuts Manager */}
+        <KeyboardShortcutsManager
+            onSave={saveProject}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onDelete={handleDelete}
+            onNewCabinet={handleAddCabinet}
+            onCameraPreset={handleCameraPresetSelect}
+            onZoom={handleZoom}
+            onToggleCutList={() => setShowCutList(!showCutList)}
+            onCycleMeasurement={handleCycleMeasurement}
+            selectedCabinetId={selectedCabinetId}
+            selectedDrawerId={selectedDrawerId}
+            selectedDoorIndex={selectedDoorIndex}
+        />
     </div>
     );
 };

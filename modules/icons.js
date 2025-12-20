@@ -195,6 +195,57 @@ const DollarSign = ({ size = 24, color = "currentColor" }) => (
     </svg>
 );
 
-// These icon components are now globally available when this script loads
-// Other scripts loaded after this one can use:
-// Camera, Box, Ruler, FileText, Download, Plus, Trash2, Save, FolderOpen, DollarSign
+/**
+ * RotateCcw Icon
+ * 
+ * USED FOR: Undo button
+ * LOOKS LIKE: An arrow rotating counter-clockwise
+ */
+const RotateCcw = ({ size = 24, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <polyline points="1 4 1 10 7 10"></polyline>
+        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+    </svg>
+);
+
+/**
+ * RotateCw Icon
+ * 
+ * USED FOR: Redo button
+ * LOOKS LIKE: An arrow rotating clockwise
+ */
+const RotateCw = ({ size = 24, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"></path>
+    </svg>
+);
+
+/**
+ * Clock Icon
+ * 
+ * USED FOR: History timeline button
+ * LOOKS LIKE: A clock face with hands
+ */
+const Clock = ({ size = 24, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
+);
+
+// Make icons globally available by attaching to window object
+window.Camera = Camera;
+window.Box = Box;
+window.Ruler = Ruler;
+window.FileText = FileText;
+window.Download = Download;
+window.Plus = Plus;
+window.Trash2 = Trash2;
+window.Save = Save;
+window.FolderOpen = FolderOpen;
+window.DollarSign = DollarSign;
+window.RotateCcw = RotateCcw;
+window.RotateCw = RotateCw;
+window.Clock = Clock;
+

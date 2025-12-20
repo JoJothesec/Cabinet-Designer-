@@ -167,17 +167,17 @@ Create an intuitive, web-based cabinet design tool that offers professional-grad
    - Video tutorial library
    - Sample projects to explore
 
-2. **Keyboard Shortcuts**
-   - Common actions (save, undo, delete)
-   - View shortcuts (rotate, zoom, pan)
-   - Quick dimension input
-   - Keyboard shortcut reference overlay
+2. **Keyboard Shortcuts** ✅
+   - [x] Common actions (save, undo, delete)
+   - [x] View shortcuts (rotate, zoom, pan)
+   - [x] Quick dimension input
+   - [x] Keyboard shortcut reference overlay
 
-3. **Undo/Redo System**
-   - Full history stack
-   - Undo/redo buttons
-   - History timeline view
-   - Ctrl+Z / Ctrl+Y support
+3. **Undo/Redo System** ✅
+   - [x] Full history stack
+   - [x] Undo/redo buttons
+   - [x] History timeline view
+   - [x] Ctrl+Z / Ctrl+Y support
 
 4. **Search & Filter**
    - Search projects by name
