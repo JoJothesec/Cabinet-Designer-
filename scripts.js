@@ -98,6 +98,29 @@ const DRAWER_BOX = {
     slidesClearance: 0.5
 };
 
+// Smart Defaults Constants
+const SMART_DEFAULTS = {
+    // Standard reveal (gap) between drawer fronts
+    drawerReveal: 0.125, // 1/8 inch gap between drawers
+    doorReveal: 0.125,   // 1/8 inch gap between doors
+    
+    // Optimal drawer heights for different purposes
+    drawerHeights: {
+        small: 4,      // Utensil/small items drawer
+        medium: 6,     // Standard drawer
+        large: 8,      // Large drawer
+        deep: 10       // Deep drawer (pots/pans)
+    },
+    
+    // Door width recommendations
+    doorWidth: {
+        min: 8,        // Minimum usable door width
+        optimalMin: 12, // Optimal minimum for comfortable use
+        optimalMax: 24, // Optimal maximum before needing to split
+        max: 30        // Maximum before requiring split
+    }
+};
+
 // hardware options
 const HINGE_TYPES = ['Concealed (Blum)', 'Concealed (Grass)', 'European', 'Butt Hinge'];
 const SLIDE_TYPES = ['Undermount (Blum)', 'Side Mount', 'Center Mount', 'Soft-Close'];
@@ -1413,6 +1436,117 @@ const CabinetDesigner = () => {
     }, 10);
     };
 
+    // ========== SMART DEFAULTS FUNCTIONS ==========
+    
+    /**
+     * Calculate optimal drawer heights based on cabinet height
+     * Returns an array of drawer heights that fit evenly with proper reveals
+     */
+    const calculateOptimalDrawerHeights = (cabinetHeight, toekickHeight = 0) => {
+        const availableHeight = cabinetHeight - toekickHeight;
+        const reveal = SMART_DEFAULTS.drawerReveal;
+        
+        // Different drawer configurations based on available height
+        if (availableHeight < 18) {
+            // Small cabinet: 2 small drawers
+            const drawerHeight = (availableHeight - reveal) / 2;
+            return [drawerHeight, drawerHeight];
+        } else if (availableHeight < 24) {
+            // Medium cabinet: 3 small/medium drawers
+            const drawerHeight = (availableHeight - reveal * 2) / 3;
+            return [drawerHeight, drawerHeight, drawerHeight];
+        } else if (availableHeight < 36) {
+            // Standard base cabinet: 1 small + 2 medium drawers
+            const totalReveals = reveal * 2;
+            const smallDrawer = SMART_DEFAULTS.drawerHeights.small;
+            const remaining = availableHeight - smallDrawer - totalReveals;
+            const mediumDrawer = remaining / 2;
+            return [smallDrawer, mediumDrawer, mediumDrawer];
+        } else {
+            // Tall cabinet: 1 small + 1 medium + 1 or more large drawers
+            const totalReveals = reveal * 3;
+            const smallDrawer = SMART_DEFAULTS.drawerHeights.small;
+            const mediumDrawer = SMART_DEFAULTS.drawerHeights.medium;
+            const remaining = availableHeight - smallDrawer - mediumDrawer - totalReveals;
+            
+            if (remaining < 16) {
+                return [smallDrawer, mediumDrawer, remaining];
+            } else {
+                // Split remaining into 2 large drawers
+                const largeDrawer = remaining / 2;
+                return [smallDrawer, mediumDrawer, largeDrawer, largeDrawer];
+            }
+        }
+    };
+
+    /**
+     * Auto-position drawers evenly with proper reveals
+     */
+    const applySmartDrawerDefaults = (cabinetId) => {
+        const cabinet = cabinets.find(c => c.id === cabinetId);
+        if (!cabinet) return;
+
+        const toekickHeight = cabinet.toekick ? cabinet.toekickHeight : 0;
+        const optimalHeights = calculateOptimalDrawerHeights(cabinet.height, toekickHeight);
+        const reveal = SMART_DEFAULTS.drawerReveal;
+        
+        // Create new drawers with calculated heights and positions
+        const newDrawers = [];
+        let currentY = toekickHeight;
+        
+        optimalHeights.forEach((height, index) => {
+            newDrawers.push({
+                id: Date.now() + index,
+                height: height,
+                startY: currentY
+            });
+            currentY += height + reveal;
+        });
+
+        const newCabinets = cabinets.map(c => {
+            if (c.id === cabinetId) {
+                return { ...c, drawers: newDrawers };
+            }
+            return c;
+        });
+
+        setCabinets(newCabinets);
+        
+        // Save to history
+        setTimeout(() => {
+            if (!isRestoringHistory.current) {
+                saveStateToHistory(`Applied smart defaults to ${cabinet.name || 'cabinet'}`);
+            }
+        }, 10);
+    };
+
+    /**
+     * Suggest optimal number of doors based on cabinet width
+     */
+    const getSuggestedDoorCount = (cabinetWidth) => {
+        const { optimalMax } = SMART_DEFAULTS.doorWidth;
+        
+        if (cabinetWidth <= optimalMax) {
+            return 1; // Single door for narrow cabinets
+        } else if (cabinetWidth <= optimalMax * 2) {
+            return 2; // Double door for medium cabinets
+        } else {
+            // Multiple doors for wide cabinets
+            return Math.ceil(cabinetWidth / optimalMax);
+        }
+    };
+
+    /**
+     * Apply suggested door count to cabinet
+     */
+    const applySmartDoorDefaults = (cabinetId) => {
+        const cabinet = cabinets.find(c => c.id === cabinetId);
+        if (!cabinet) return;
+
+        const suggestedDoors = getSuggestedDoorCount(cabinet.width);
+        updateCabinet(cabinetId, 'doors', suggestedDoors);
+    };
+
     const selectedCabinet = cabinets.find(c => c.id === selectedCabinetId);
 
     // detailed cut list generation (truncated for space - keeping core structure)
@@ -2645,19 +2779,35 @@ const CabinetDesigner = () => {
 
             <div style={inputGroupStyle}>
                 <label style={labelStyle}>Number of Doors</label>
-                <input
-                type="number"
-                min="0"
-                max={selectedCabinet.doubleDoor ? 2 : getMaxDoors(selectedCabinet.width)}
-                value={selectedCabinet.doors}
-                onChange={(e) => {
-                    const newDoors = parseInt(e.target.value);
-                    updateCabinet(selectedCabinet.id, 'doors', newDoors);
-                    // Clear door selection if no doors
-                    if (newDoors === 0) setSelectedDoorIndex(null);
-                }}
-                style={inputStyle}
-                />
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                    type="number"
+                    min="0"
+                    max={selectedCabinet.doubleDoor ? 2 : getMaxDoors(selectedCabinet.width)}
+                    value={selectedCabinet.doors}
+                    onChange={(e) => {
+                        const newDoors = parseInt(e.target.value);
+                        updateCabinet(selectedCabinet.id, 'doors', newDoors);
+                        // Clear door selection if no doors
+                        if (newDoors === 0) setSelectedDoorIndex(null);
+                    }}
+                    style={{...inputStyle, flex: 1}}
+                    />
+                    <button
+                        onClick={() => applySmartDoorDefaults(selectedCabinet.id)}
+                        style={{
+                            ...buttonStyle,
+                            padding: '8px 12px',
+                            background: '#4a90e2',
+                            border: '1px solid #5aa3ff',
+                            fontSize: '11px',
+                            whiteSpace: 'nowrap'
+                        }}
+                        title="Suggest optimal door count based on cabinet width"
+                    >
+                        ✨ Auto
+                    </button>
+                </div>
             </div>
 
             <div style={inputGroupStyle}>
@@ -2793,13 +2943,28 @@ const CabinetDesigner = () => {
                 </select>
             </div>
 
-            <button
-                onClick={() => addDrawer(selectedCabinet.id)}
-                style={{...buttonStyle, width: '100%', marginBottom: '12px', justifyContent: 'center'}}
-            >
-                <Plus size={16} />
-                Add Drawer
-            </button>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                <button
+                    onClick={() => addDrawer(selectedCabinet.id)}
+                    style={{...buttonStyle, flex: 1, justifyContent: 'center'}}
+                >
+                    <Plus size={16} />
+                    Add Drawer
+                </button>
+                <button
+                    onClick={() => applySmartDrawerDefaults(selectedCabinet.id)}
+                    style={{
+                        ...buttonStyle, 
+                        flex: 1, 
+                        justifyContent: 'center',
+                        background: '#4a90e2',
+                        border: '1px solid #5aa3ff'
+                    }}
+                    title="Auto-calculate and position drawers evenly with optimal heights"
+                >
+                    ✨ Smart Fill
+                </button>
+            </div>
 
             {selectedCabinet.drawers && selectedCabinet.drawers.length > 0 && (
                 <div style={{ background: '#252525', padding: '12px', borderRadius: '4px', marginBottom: '16px' }}>
