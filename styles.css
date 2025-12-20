@@ -278,3 +278,101 @@ tr:hover {
         page-break-inside: avoid;
     }
 }
+
+/* ========== CAMERA PRESET TOOLBAR STYLES ========== */
+
+/* Main toolbar container - holds all camera preset buttons */
+.camera-preset-toolbar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Group of camera preset buttons */
+.camera-preset-group {
+    display: flex;
+    gap: 8px;
+    background: #1a1a1a;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+/* Individual camera preset button */
+.camera-preset-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 16px;
+    background: #252525;
+    border: 2px solid #333;
+    border-radius: 6px;
+    color: #f0f0f0;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 70px;
+}
+
+/* Button hover state */
+.camera-preset-btn:hover {
+    background: #303030;
+    border-color: #ff6b35;
+    color: #ff6b35;
+    transform: translateY(-2px);
+}
+
+/* Active button state - shows which view is currently selected */
+.camera-preset-btn.active {
+    background: #ff6b35;
+    border-color: #ff6b35;
+    color: #000;
+    font-weight: bold;
+}
+
+/* Active button hover state */
+.camera-preset-btn.active:hover {
+    background: #ff8855;
+    border-color: #ff8855;
+    transform: translateY(-2px);
+}
+
+/* Button pressed state */
+.camera-preset-btn:active {
+    transform: translateY(0);
+}
+
+/* Label text inside button */
+.camera-preset-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Icon container inside button */
+.camera-preset-btn svg {
+    stroke-width: 2;
+    transition: transform 0.2s ease;
+}
+
+/* Rotate icon slightly on hover for visual feedback */
+.camera-preset-btn:hover svg {
+    transform: scale(1.1);
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .camera-preset-btn {
+        min-width: 60px;
+        padding: 8px 12px;
+    }
+    
+    .camera-preset-label {
+        font-size: 9px;
+    }
+}

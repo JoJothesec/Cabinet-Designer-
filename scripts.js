@@ -72,11 +72,15 @@ function decimalToFraction(decimal) {
     return result.trim();
 }
 
-// Formats measurement as: fraction (decimal)
-function formatMeasurement(decimal) {
+// Formats measurement as: fraction (decimal), fraction only, or decimal only
+function formatMeasurement(decimal, format = 'both') {
     if (decimal <= 0) return '0"';
     const fraction = decimalToFraction(decimal);
-    return `${fraction} (${decimal.toFixed(3)}")`;
+    const decimalStr = `${decimal.toFixed(3)}"`;
+    
+    if (format === 'fraction') return fraction;
+    if (format === 'decimal') return decimalStr;
+    return `${fraction} (${decimalStr})`; // both
 }
 
 // construction specs
@@ -390,6 +394,11 @@ const CabinetDesigner = () => {
     });
 
     const [laborRate, setLaborRate] = useState(50); // per hour
+    const [activeCameraPreset, setActiveCameraPreset] = useState('isometric'); // Track active camera view
+    const [measurementFormat, setMeasurementFormat] = useState(() => {
+        // Load measurement preference from localStorage, default to 'both'
+        return localStorage.getItem('measurementFormat') || 'both';
+    });
 
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -406,6 +415,11 @@ const CabinetDesigner = () => {
     const cameraAngle = useRef({ theta: Math.PI / 4, phi: Math.PI / 6 });
     const cameraDistance = useRef(80);
     const modelRef = useRef(null); // Reference to the loaded GLB model
+
+    // Save measurement format preference to localStorage
+    useEffect(() => {
+        localStorage.setItem('measurementFormat', measurementFormat);
+    }, [measurementFormat]);
 
     // create default cabinet
     const createNewCabinet = () => {
@@ -687,6 +701,9 @@ const CabinetDesigner = () => {
 
     updateCameraPosition(cameraRef.current);
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
+    
+    // Clear active preset when user manually moves camera
+    setActiveCameraPreset(null);
     };
 
     const handleMouseUp = () => {
@@ -700,6 +717,28 @@ const CabinetDesigner = () => {
     cameraDistance.current += e.deltaY * 0.05;
     cameraDistance.current = Math.max(30, Math.min(150, cameraDistance.current));
     updateCameraPosition(cameraRef.current);
+    
+    // Clear active preset when user manually zooms
+    setActiveCameraPreset(null);
+    };
+
+    // Handle camera preset selection
+    const handleCameraPresetSelect = (presetName) => {
+    if (!cameraRef.current) return;
+    
+    // Apply the camera preset using the imported function
+    const success = window.applyCameraPreset(
+        cameraRef.current,
+        presetName,
+        cameraAngle,
+        cameraDistance,
+        updateCameraPosition
+    );
+    
+    // Update active preset state if successful
+    if (success) {
+        setActiveCameraPreset(presetName);
+    }
     };
 
     // update 3D when cabinets change or selection changes
@@ -1655,8 +1694,8 @@ const CabinetDesigner = () => {
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.cabinet}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.part}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.quantity}</td>
-                    <td style="border: 1px solid #ddd; padding: 6px;">${item.width > 0 ? formatMeasurement(item.width) : '-'}</td>
-                    <td style="border: 1px solid #ddd; padding: 6px;">${item.height > 0 ? formatMeasurement(item.height) : '-'}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.width > 0 ? formatMeasurement(item.width, measurementFormat) : '-'}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.height > 0 ? formatMeasurement(item.height, measurementFormat) : '-'}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.thickness > 0 ? item.thickness : '-'}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.material}</td>
                     <td style="border: 1px solid #ddd; padding: 6px;">${item.notes}</td>
@@ -1680,7 +1719,7 @@ const CabinetDesigner = () => {
     const cutList = generateCutList();
     let csv = 'Cabinet,Part,Quantity,Width (in),Height (in),Thickness (in),Material,Notes\n';
     cutList.forEach(item => {
-        csv += `${item.cabinet},${item.part},${item.quantity},${item.width > 0 ? formatMeasurement(item.width) : '-'},${item.height > 0 ? formatMeasurement(item.height) : '-'},${item.thickness > 0 ? item.thickness : '-'},${item.material},"${item.notes}"\n`;
+        csv += `${item.cabinet},${item.part},${item.quantity},${item.width > 0 ? formatMeasurement(item.width, measurementFormat) : '-'},${item.height > 0 ? formatMeasurement(item.height, measurementFormat) : '-'},${item.thickness > 0 ? item.thickness : '-'},${item.material},"${item.notes}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -1780,8 +1819,8 @@ const CabinetDesigner = () => {
                     <td style={{ border: '1px solid #444', padding: '6px' }}>{item.cabinet}</td>
                     <td style={{ border: '1px solid #444', padding: '6px' }}>{item.part}</td>
                     <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>{item.quantity}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.width > 0 ? formatMeasurement(item.width) : '-'}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.height > 0 ? formatMeasurement(item.height) : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.width > 0 ? formatMeasurement(item.width, measurementFormat) : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.height > 0 ? formatMeasurement(item.height, measurementFormat) : '-'}</td>
                     <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.thickness > 0 ? item.thickness : '-'}</td>
                     <td style={{ border: '1px solid #444', padding: '6px' }}>{item.material}</td>
                     <td style={{ border: '1px solid #444', padding: '6px', fontSize: '11px' }}>{item.notes}</td>
@@ -1942,6 +1981,51 @@ const CabinetDesigner = () => {
 
         {/* center view */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {/* Camera Preset Toolbar - Only show in 3D view */}
+            {viewMode === '3d' && (
+            <div style={{
+                padding: '12px 16px',
+                background: '#0a0a0a',
+                borderBottom: '1px solid #333',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+            }}>
+                <div style={{ flex: 1 }}></div>
+                <window.CameraPresetToolbar 
+                onPresetSelect={handleCameraPresetSelect}
+                activePreset={activeCameraPreset}
+                />
+                <div style={{ 
+                    flex: 1, 
+                    display: 'flex', 
+                    justifyContent: 'flex-end',
+                    gap: '8px'
+                }}>
+                    <button
+                        onClick={() => {
+                            const formats = ['both', 'fraction', 'decimal'];
+                            const currentIndex = formats.indexOf(measurementFormat);
+                            const nextIndex = (currentIndex + 1) % formats.length;
+                            setMeasurementFormat(formats[nextIndex]);
+                        }}
+                        style={{
+                            ...buttonStyle,
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            background: '#ff6b35',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}
+                        title="Toggle measurement display format"
+                    >
+                        📏 {measurementFormat === 'both' ? 'Both' : measurementFormat === 'fraction' ? 'Fractions' : 'Decimals'}
+                    </button>
+                </div>
+            </div>
+            )}
+
             <div 
                 ref={containerRef}
                 style={{
@@ -1988,8 +2072,8 @@ const CabinetDesigner = () => {
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.cabinet}</td>
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.part}</td>
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.quantity}</td>
-                            <td style={{...tableCellStyle, fontSize: '11px'}}>{item.width > 0 ? formatMeasurement(item.width) : '-'}</td>
-                            <td style={{...tableCellStyle, fontSize: '11px'}}>{item.height > 0 ? formatMeasurement(item.height) : '-'}</td>
+                            <td style={{...tableCellStyle, fontSize: '11px'}}>{item.width > 0 ? formatMeasurement(item.width, measurementFormat) : '-'}</td>
+                            <td style={{...tableCellStyle, fontSize: '11px'}}>{item.height > 0 ? formatMeasurement(item.height, measurementFormat) : '-'}</td>
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.thickness > 0 ? `${item.thickness}"` : '-'}</td>
                             <td style={{...tableCellStyle, fontSize: '11px'}}>{item.material}</td>
                             <td style={{...tableCellStyle, fontSize: '10px', color: '#aaa'}}>{item.notes}</td>
@@ -2112,7 +2196,7 @@ const CabinetDesigner = () => {
                 onChange={(e) => updateCabinet(selectedCabinet.id, 'width', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
-                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.width)}</div>
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.width, measurementFormat)}</div>
             </div>
 
             <div style={inputGroupStyle}>
@@ -2124,7 +2208,7 @@ const CabinetDesigner = () => {
                 onChange={(e) => updateCabinet(selectedCabinet.id, 'height', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
-                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.height)}</div>
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.height, measurementFormat)}</div>
             </div>
 
             <div style={inputGroupStyle}>
@@ -2136,7 +2220,7 @@ const CabinetDesigner = () => {
                 onChange={(e) => updateCabinet(selectedCabinet.id, 'depth', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
-                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.depth)}</div>
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.depth, measurementFormat)}</div>
             </div>
 
             <div className="section-header">CONSTRUCTION</div>
@@ -2208,7 +2292,7 @@ const CabinetDesigner = () => {
                 onChange={(e) => updateCabinet(selectedCabinet.id, 'doorDrawerGap', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
-                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.doorDrawerGap)}</div>
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.doorDrawerGap, measurementFormat)}</div>
             </div>
 
             <div style={inputGroupStyle}>
@@ -2220,7 +2304,7 @@ const CabinetDesigner = () => {
                 onChange={(e) => updateCabinet(selectedCabinet.id, 'doorOverhang', parseFraction(e.target.value))}
                 style={inputStyle}
                 />
-                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.doorOverhang)}</div>
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.doorOverhang, measurementFormat)}</div>
             </div>
 
             {selectedCabinet.doors > 0 && (
