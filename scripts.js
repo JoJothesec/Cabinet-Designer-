@@ -1,5 +1,76 @@
 const { useState, useEffect, useRef } = React;
 
+// ========== FRACTION PARSING & CONVERSION FUNCTIONS ==========
+// Converts fraction input like "3/4", "1 1/2", "36 3/8" to decimal
+function parseFraction(input) {
+    if (typeof input === 'number') return input;
+    
+    input = String(input).trim();
+    
+    // Handle decimal input
+    if (!isNaN(input)) return parseFloat(input);
+    
+    // Handle mixed fractions like "1 1/2" or "36 3/8"
+    const mixedMatch = input.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    if (mixedMatch) {
+        const whole = parseInt(mixedMatch[1]);
+        const num = parseInt(mixedMatch[2]);
+        const den = parseInt(mixedMatch[3]);
+        return whole + (num / den);
+    }
+    
+    // Handle simple fractions like "3/4" or "1/2"
+    const fracMatch = input.match(/^(\d+)\/(\d+)$/);
+    if (fracMatch) {
+        const num = parseInt(fracMatch[1]);
+        const den = parseInt(fracMatch[2]);
+        return num / den;
+    }
+    
+    // If nothing matches, try to parse as decimal
+    return parseFloat(input) || 0;
+}
+
+// Converts decimal inches to feet and fractional inches (down to 16ths)
+function decimalToFraction(decimal) {
+    const feet = Math.floor(decimal / 12);
+    const remainingInches = decimal % 12;
+    const wholeInches = Math.floor(remainingInches);
+    const fraction = remainingInches - wholeInches;
+    
+    // Convert to 16ths
+    const sixteenths = Math.round(fraction * 16);
+    
+    // Simplify fraction
+    let num = sixteenths;
+    let den = 16;
+    
+    if (num === 0) {
+        if (feet > 0 && wholeInches > 0) return `${feet}' ${wholeInches}"`;
+        if (feet > 0) return `${feet}'`;
+        if (wholeInches > 0) return `${wholeInches}"`;
+        return '0"';
+    }
+    
+    // Reduce fraction
+    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+    const divisor = gcd(num, den);
+    num = num / divisor;
+    den = den / divisor;
+    
+    let result = '';
+    if (feet > 0) result += `${feet}' `;
+    if (wholeInches > 0 || feet > 0) result += `${wholeInches}`;
+    if (num > 0) {
+        if (wholeInches > 0) result += ` ${num}/${den}"`;
+        else result += `${num}/${den}"`;
+    } else {
+        result += '"';
+    }
+    
+    return result.trim();
+}
+
 // construction specs
 const DOOR_SPECS = {
     shaker: { railWidth: 2.5, stileWidth: 2.5, panelThickness: 0.25, panelSetback: 0.375 },
@@ -115,7 +186,58 @@ const DollarSign = ({ size = 24, color = "currentColor" }) => (
     </svg>
 );
 
-// create wood texture
+// ========== PROJECT MANAGEMENT FUNCTIONS ==========
+// Save project to localStorage
+const saveProjectToStorage = (projectName, cabinets, materialCosts, laborRate) => {
+    if (!projectName.trim()) {
+        alert('Please enter a project name!');
+        return false;
+    }
+    
+    const projectData = {
+        name: projectName,
+        date: new Date().toISOString(),
+        cabinets: cabinets,
+        materialCosts: materialCosts,
+        laborRate: laborRate
+    };
+    
+    let savedProjects = JSON.parse(localStorage.getItem('cabinetProjects') || '[]');
+    
+    const existingIndex = savedProjects.findIndex(p => p.name === projectName);
+    if (existingIndex >= 0) {
+        if (confirm(`A project named "${projectName}" already exists. Do you want to overwrite it?`)) {
+            savedProjects[existingIndex] = projectData;
+        } else {
+            return false;
+        }
+    } else {
+        savedProjects.push(projectData);
+    }
+    
+    localStorage.setItem('cabinetProjects', JSON.stringify(savedProjects));
+    return true;
+};
+
+// Load project from localStorage
+const loadProjectFromStorage = (projectName) => {
+    const savedProjects = JSON.parse(localStorage.getItem('cabinetProjects') || '[]');
+    return savedProjects.find(p => p.name === projectName);
+};
+
+// Get all saved projects
+const getAllSavedProjects = () => {
+    return JSON.parse(localStorage.getItem('cabinetProjects') || '[]');
+};
+
+// Delete project from localStorage
+const deleteProjectFromStorage = (projectName) => {
+    let savedProjects = JSON.parse(localStorage.getItem('cabinetProjects') || '[]');
+    savedProjects = savedProjects.filter(p => p.name !== projectName);
+    localStorage.setItem('cabinetProjects', JSON.stringify(savedProjects));
+};
+
+// main component
 const createWoodTexture = (color) => {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -163,6 +285,17 @@ const CabinetDesigner = () => {
     const [hiddenDrawers, setHiddenDrawers] = useState(new Set()); // Set of drawer IDs
     const [viewMode, setViewMode] = useState('3d');
     const [projectName, setProjectName] = useState('Untitled Project');
+    const [showCutList, setShowCutList] = useState(false);
+    const [materialCosts, setMaterialCosts] = useState({
+        'plywood': 45,
+        'hardwood': 75,
+        'mdf': 35,
+        'birch': 65,
+        'oak': 70,
+        'maple': 85,
+        'cherry': 95,
+        'walnut': 100
+    });
 
     const [laborRate, setLaborRate] = useState(50); // per hour
 
@@ -180,6 +313,7 @@ const CabinetDesigner = () => {
     const previousMousePosition = useRef({ x: 0, y: 0 });
     const cameraAngle = useRef({ theta: Math.PI / 4, phi: Math.PI / 6 });
     const cameraDistance = useRef(80);
+    const modelRef = useRef(null); // Reference to the loaded GLB model
 
     // create default cabinet
     const createNewCabinet = () => {
@@ -276,6 +410,12 @@ const CabinetDesigner = () => {
 
     const animate = () => {
         animationRef.current = requestAnimationFrame(animate);
+        
+        // Rotate the GLB model if it exists
+        if (modelRef.current) {
+            modelRef.current.rotation.y += 0.005;
+        }
+        
         renderer.render(scene, camera);
     };
     animate();
@@ -319,6 +459,61 @@ const CabinetDesigner = () => {
         }
     };
     }, []);
+
+    // Load GLB model
+    useEffect(() => {
+        if (!sceneRef.current) return;
+
+        // Check if GLTFLoader is available
+        if (typeof THREE === 'undefined' || !THREE.GLTFLoader) {
+            console.warn('GLTFLoader not yet available, retrying...');
+            const timeout = setTimeout(() => {
+                // Retry after a short delay
+                if (THREE && THREE.GLTFLoader) {
+                    const loader = new THREE.GLTFLoader();
+                    loadModel(loader, sceneRef.current);
+                }
+            }, 500);
+            return () => clearTimeout(timeout);
+        }
+
+        const loader = new THREE.GLTFLoader();
+        loadModel(loader, sceneRef.current);
+    }, []);
+
+    const loadModel = (loader, scene) => {
+        loader.load(
+            'myNewModel.glb',
+            (gltf) => {
+                const model = gltf.scene;
+                
+                // Remove old model if it exists
+                if (modelRef.current) {
+                    scene.remove(modelRef.current);
+                }
+                
+                // Scale the model to fit nicely in the scene
+                model.scale.set(0.1, 0.1, 0.1);
+                
+                // Center the model in the scene
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                model.position.sub(center);
+                
+                // Add basic rotation animation
+                model.userData.isModel = true;
+                
+                scene.add(model);
+                modelRef.current = model;
+            },
+            (progress) => {
+                console.log('Loading model: ' + (progress.loaded / progress.total * 100) + '%');
+            },
+            (error) => {
+                console.error('Error loading GLB model:', error);
+            }
+        );
+    };
 
     const updateCameraPosition = (camera) => {
     const theta = cameraAngle.current.theta;
@@ -1219,28 +1414,162 @@ const CabinetDesigner = () => {
     };
 
     const saveProject = () => {
-    const project = {
-        name: projectName,
-        cabinets: cabinets,
-        materialCosts: materialCosts,
-        laborRate: laborRate,
-        savedAt: new Date().toISOString()
-    };
-    localStorage.setItem('cabinetProject', JSON.stringify(project));
-    alert('Project saved!');
+    const success = saveProjectToStorage(projectName, cabinets, materialCosts, laborRate);
+    if (success) {
+        // Also save PDF
+        savePDF();
+        alert(`Project "${projectName}" saved successfully!`);
+    }
     };
 
-    const loadProject = () => {
-    const saved = localStorage.getItem('cabinetProject');
-    if (saved) {
-        const project = JSON.parse(saved);
-        setProjectName(project.name);
-        setCabinets(project.cabinets);
-        setLaborRate(project.laborRate || 50);
-        alert('Project loaded!');
-    } else {
-        alert('No saved project found');
+    const handleLoadProject = () => {
+    const allProjects = getAllSavedProjects();
+    
+    if (allProjects.length === 0) {
+        alert('No saved projects found!');
+        return;
     }
+    
+    let message = 'Saved Projects:\n\n';
+    allProjects.forEach((project, index) => {
+        const date = new Date(project.date).toLocaleDateString();
+        message += `${index + 1}. ${project.name} - Saved: ${date}\n`;
+    });
+    message += '\nEnter project number to load:';
+    
+    const selection = prompt(message);
+    
+    if (selection) {
+        const index = parseInt(selection) - 1;
+        if (index >= 0 && index < allProjects.length) {
+            const project = allProjects[index];
+            setProjectName(project.name);
+            setCabinets(project.cabinets);
+            setMaterialCosts(project.materialCosts || materialCosts);
+            setLaborRate(project.laborRate || 50);
+            alert(`Project "${project.name}" loaded!`);
+        } else {
+            alert('Invalid selection!');
+        }
+    }
+    };
+
+    const handleShowSavedProjects = () => {
+    const allProjects = getAllSavedProjects();
+    
+    if (allProjects.length === 0) {
+        alert('No saved projects found!');
+        return;
+    }
+    
+    let message = 'Saved Projects:\n\n';
+    allProjects.forEach((project, index) => {
+        const date = new Date(project.date).toLocaleDateString();
+        message += `${index + 1}. ${project.name}\n`;
+        message += `   Cabinets: ${project.cabinets.length}\n`;
+        message += `   Saved: ${date}\n\n`;
+    });
+    
+    message += 'Enter project number to DELETE (or click Cancel):';
+    
+    const selection = prompt(message);
+    
+    if (selection) {
+        const index = parseInt(selection) - 1;
+        if (index >= 0 && index < allProjects.length) {
+            const projectName = allProjects[index].name;
+            if (confirm(`Are you sure you want to delete "${projectName}"?`)) {
+                deleteProjectFromStorage(projectName);
+                alert(`Project "${projectName}" deleted!`);
+            }
+        } else {
+            alert('Invalid selection!');
+        }
+    }
+    };
+
+    const savePDF = () => {
+    // Get canvas screenshot
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const imgData = canvas.toDataURL('image/png');
+    const cutList = generateCutList();
+    const materials = calculateMaterials();
+    
+    // Create HTML content for PDF
+    const element = document.createElement('div');
+    element.style.padding = '20px';
+    element.style.fontFamily = 'Arial, sans-serif';
+    element.style.background = 'white';
+    element.style.color = 'black';
+    element.innerHTML = `
+        <h1>${projectName} - Cabinet Design</h1>
+        <p>Date: ${new Date().toLocaleDateString()}</p>
+        
+        <h2>3D View</h2>
+        <img src="${imgData}" style="max-width: 100%; max-height: 400px; border: 1px solid #ccc; margin-bottom: 20px;">
+        
+        <h2>Material List</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr style="background-color: #f0f0f0;">
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Material</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Square Feet</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Sheets (4x8)</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Cost per Sheet</th>
+                <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Total Cost</th>
+            </tr>
+            ${Object.entries(materials).map(([material, data]) => `
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${material}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${data.area.toFixed(2)}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${data.sheets}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">$${materialCosts[material]?.toFixed(2) || '0.00'}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">$${data.cost.toFixed(2)}</td>
+                </tr>
+            `).join('')}
+            <tr style="background-color: #f0f0f0; font-weight: bold;">
+                <td colspan="4" style="border: 1px solid #ddd; padding: 8px; text-align: right;">Total Material Cost:</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">$${Object.values(materials).reduce((sum, data) => sum + data.cost, 0).toFixed(2)}</td>
+            </tr>
+        </table>
+        
+        <h2>Cut List</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <tr style="background-color: #f0f0f0;">
+                <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Cabinet</th>
+                <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Part</th>
+                <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Qty</th>
+                <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Width</th>
+                <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Height</th>
+                <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Thickness</th>
+                <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Material</th>
+                <th style="border: 1px solid #ddd; padding: 6px; text-align: left;">Notes</th>
+            </tr>
+            ${cutList.map(item => `
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.cabinet}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.part}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.quantity}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.width > 0 ? item.width.toFixed(2) + '"' : '-'}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.height > 0 ? item.height.toFixed(2) + '"' : '-'}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.thickness > 0 ? item.thickness : '-'}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.material}</td>
+                    <td style="border: 1px solid #ddd; padding: 6px;">${item.notes}</td>
+                </tr>
+            `).join('')}
+        </table>
+    `;
+    
+    const opt = {
+        margin: 10,
+        filename: `${projectName}-design.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'letter' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
     };
 
     const exportCutList = () => {
@@ -1256,6 +1585,109 @@ const CabinetDesigner = () => {
     a.href = url;
     a.download = `${projectName}-cutlist.csv`;
     a.click();
+    };
+
+    const CutListModal = () => {
+    const cutList = generateCutList();
+    const materials = calculateMaterials();
+    
+    if (!showCutList) return null;
+    
+    return (
+        <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0,0,0,0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000
+        }}>
+        <div style={{
+            background: '#1a1a1a',
+            border: '2px solid #ff6b35',
+            borderRadius: '8px',
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            padding: '24px',
+            color: '#f0f0f0'
+        }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2>Cut List & Material List</h2>
+            <button
+                onClick={() => setShowCutList(false)}
+                style={{
+                background: '#ff6b35',
+                color: '#000',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold'
+                }}
+            >
+                Close
+            </button>
+            </div>
+            
+            <h3>Material Summary</h3>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+            <tr style={{ background: '#ff6b35', color: '#000' }}>
+                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'left' }}>Material</th>
+                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'left' }}>Sq Ft</th>
+                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'left' }}>Sheets</th>
+                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'left' }}>Cost/Sheet</th>
+                <th style={{ border: '1px solid #444', padding: '8px', textAlign: 'left' }}>Total</th>
+            </tr>
+            {Object.entries(materials).map(([material, data]) => (
+                <tr key={material}>
+                <td style={{ border: '1px solid #444', padding: '8px' }}>{material}</td>
+                <td style={{ border: '1px solid #444', padding: '8px' }}>{data.area.toFixed(2)}</td>
+                <td style={{ border: '1px solid #444', padding: '8px' }}>{data.sheets}</td>
+                <td style={{ border: '1px solid #444', padding: '8px' }}>${materialCosts[material]?.toFixed(2) || '0.00'}</td>
+                <td style={{ border: '1px solid #444', padding: '8px' }}>${data.cost.toFixed(2)}</td>
+                </tr>
+            ))}
+            <tr style={{ background: '#333', fontWeight: 'bold' }}>
+                <td colSpan="4" style={{ border: '1px solid #444', padding: '8px', textAlign: 'right' }}>Total:</td>
+                <td style={{ border: '1px solid #444', padding: '8px' }}>${Object.values(materials).reduce((sum, data) => sum + data.cost, 0).toFixed(2)}</td>
+            </tr>
+            </table>
+            
+            <h3>Cut List Details</h3>
+            <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <tr style={{ background: '#ff6b35', color: '#000' }}>
+                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Cabinet</th>
+                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Part</th>
+                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>Qty</th>
+                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>Width</th>
+                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>Height</th>
+                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>Thick</th>
+                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Material</th>
+                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Notes</th>
+                </tr>
+                {cutList.map((item, idx) => (
+                <tr key={idx}>
+                    <td style={{ border: '1px solid #444', padding: '6px' }}>{item.cabinet}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px' }}>{item.part}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>{item.quantity}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.width > 0 ? item.width.toFixed(2) + '"' : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.height > 0 ? item.height.toFixed(2) + '"' : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.thickness > 0 ? item.thickness : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px' }}>{item.material}</td>
+                    <td style={{ border: '1px solid #444', padding: '6px', fontSize: '11px' }}>{item.notes}</td>
+                </tr>
+                ))}
+            </table>
+            </div>
+        </div>
+        </div>
+    );
     };
 
     return (
@@ -1298,9 +1730,17 @@ const CabinetDesigner = () => {
             <Save size={18} />
             Save
             </button>
-            <button onClick={loadProject} style={buttonStyle}>
+            <button onClick={handleLoadProject} style={buttonStyle}>
             <FolderOpen size={18} />
             Load
+            </button>
+            <button onClick={handleShowSavedProjects} style={buttonStyle}>
+            <FileText size={18} />
+            Projects
+            </button>
+            <button onClick={() => setShowCutList(true)} style={buttonStyle}>
+            <FileText size={18} />
+            Cut List
             </button>
             <button onClick={exportCutList} style={buttonStyle}>
             <Download size={18} />
@@ -1308,6 +1748,8 @@ const CabinetDesigner = () => {
             </button>
         </div>
         </div>
+
+        <CutListModal />
 
         {/* main content */}
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -2012,16 +2454,6 @@ const CabinetDesigner = () => {
             </div>
 
             <div className="section-header">APPEARANCE</div>
-
-            <div style={inputGroupStyle}>
-                <label style={labelStyle}>Wood Color</label>
-                <input
-                type="color"
-                value={selectedCabinet.color}
-                onChange={(e) => updateCabinet(selectedCabinet.id, 'color', e.target.value)}
-                style={{ ...inputStyle, height: '40px', cursor: 'pointer' }}
-                />
-            </div>
             </div>
             )}
         </div>
