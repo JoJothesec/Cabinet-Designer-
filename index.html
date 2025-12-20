@@ -12,12 +12,28 @@
 <body>
     <div id="root"></div>
 
+    <!-- Load React library for building the user interface -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    
+    <!-- Load ReactDOM for rendering React components to the page -->
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Load Babel to transform modern JavaScript (JSX) into browser-compatible code -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Load Three.js for 3D graphics rendering -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Load GLTF loader for loading 3D model files -->
     <script src="https://unpkg.com/three@r128/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <!-- Load html2pdf for exporting designs as PDF documents -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- Load the main application script (with module support) -->
+    <!-- type="text/babel" tells Babel to process this JavaScript -->
+    <!-- The modules="true" attribute would be needed for true ES6 modules, -->
+    <!-- but Babel handles the module syntax transformation for us -->
     <script type="text/babel" src="scripts.js"></script>
 </body>
 </html>
