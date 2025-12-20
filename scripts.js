@@ -195,6 +195,10 @@ const CabinetDesigner = () => {
         thickness: 0.75,
         doors: 1,
         doorStyle: 'shaker',
+        doubleDoor: false,
+        doorDrawerGap: 0.125, // 1/8" default gap
+        doorOverhang: 0.5, // 1/2" default overhang
+        doorHandles: {}, // {doorIndex: 'left'|'right'} for each door
         drawers: [],  // array of {height, startY} - positioned from bottom
         drawerStyle: 'shaker',
         shelves: 1,
@@ -811,10 +815,46 @@ const CabinetDesigner = () => {
     }
     };
 
+    // Calculate maximum doors that can fit based on cabinet width
+    const getMaxDoors = (cabinetWidth) => {
+    const MIN_DOOR_WIDTH = 8; // inches - minimum usable door width
+    const DOOR_SPACING = 1; // inch between doors
+    // Formula: each door needs at least (MIN_DOOR_WIDTH + DOOR_SPACING) inches, except last door
+    return Math.max(0, Math.floor((cabinetWidth - DOOR_SPACING) / (MIN_DOOR_WIDTH + DOOR_SPACING)));
+    };
+
     const updateCabinet = (id, property, value) => {
-    setCabinets(cabinets.map(c =>
-        c.id === id ? { ...c, [property]: value } : c
-    ));
+    setCabinets(cabinets.map(c => {
+        if (c.id === id) {
+        // If updating doors, validate against cabinet width or double door limit
+        if (property === 'doors') {
+            const numDoors = parseInt(value);
+            if (c.doubleDoor) {
+            if (numDoors > 2) {
+                alert('Double Door mode allows maximum 2 doors.');
+                return c;
+            }
+            } else {
+            const maxDoors = getMaxDoors(c.width);
+            if (numDoors > maxDoors) {
+                alert(`Cannot add that many doors. Maximum for a ${c.width}" wide cabinet is ${maxDoors} door${maxDoors !== 1 ? 's' : ''}. Enable "Double Door" to add a 2nd door.`);
+                return c;
+            }
+            }
+        }
+        // If updating width, check if current doors still fit (unless double door mode)
+        if (property === 'width') {
+            const newWidth = parseFloat(value);
+            const maxDoors = getMaxDoors(newWidth);
+            if (!c.doubleDoor && c.doors > maxDoors) {
+            alert(`Cabinet width of ${newWidth}" can only fit ${maxDoors} door${maxDoors !== 1 ? 's' : ''}. Reducing door count.`);
+            return { ...c, [property]: value, doors: maxDoors };
+            }
+        }
+        return { ...c, [property]: value };
+        }
+        return c;
+    }));
     };
 
     // add drawer at specific position
@@ -1566,12 +1606,25 @@ const CabinetDesigner = () => {
                 </select>
             </div>
 
+            <div style={{ ...inputGroupStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                type="checkbox"
+                id="doubleDoor"
+                checked={selectedCabinet.doubleDoor || false}
+                onChange={(e) => updateCabinet(selectedCabinet.id, 'doubleDoor', e.target.checked)}
+                style={{ cursor: 'pointer' }}
+                />
+                <label htmlFor="doubleDoor" style={{ ...labelStyle, margin: 0, cursor: 'pointer' }}>
+                Double Door (no width limit)
+                </label>
+            </div>
+
             <div style={inputGroupStyle}>
                 <label style={labelStyle}>Number of Doors</label>
                 <input
                 type="number"
                 min="0"
-                max={Math.floor(selectedCabinet.width / 5)}
+                max={selectedCabinet.doubleDoor ? 2 : getMaxDoors(selectedCabinet.width)}
                 value={selectedCabinet.doors}
                 onChange={(e) => {
                     const newDoors = parseInt(e.target.value);
@@ -1579,6 +1632,30 @@ const CabinetDesigner = () => {
                     // Clear door selection if no doors
                     if (newDoors === 0) setSelectedDoorIndex(null);
                 }}
+                style={inputStyle}
+                />
+            </div>
+
+            <div style={inputGroupStyle}>
+                <label style={labelStyle}>Door/Drawer Gap (inches)</label>
+                <input
+                type="number"
+                min="0"
+                step="0.125"
+                value={selectedCabinet.doorDrawerGap}
+                onChange={(e) => updateCabinet(selectedCabinet.id, 'doorDrawerGap', parseFloat(e.target.value))}
+                style={inputStyle}
+                />
+            </div>
+
+            <div style={inputGroupStyle}>
+                <label style={labelStyle}>Door/Drawer Overhang (inches)</label>
+                <input
+                type="number"
+                min="0"
+                step="0.125"
+                value={selectedCabinet.doorOverhang}
+                onChange={(e) => updateCabinet(selectedCabinet.id, 'doorOverhang', parseFloat(e.target.value))}
                 style={inputStyle}
                 />
             </div>
@@ -1651,6 +1728,29 @@ const CabinetDesigner = () => {
                     </div>
                     </div>
                 ))}
+                </div>
+            )}
+
+            {selectedDoorIndex !== null && selectedCabinet.doors > 0 && (
+                <div style={{ background: '#252525', padding: '12px', borderRadius: '4px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#ff6b35', fontWeight: 'bold', marginBottom: '8px' }}>
+                    Door {selectedDoorIndex + 1} Settings
+                </div>
+                <div style={inputGroupStyle}>
+                    <label style={labelStyle}>Handle Position</label>
+                    <select
+                    value={selectedCabinet.doorHandles?.[selectedDoorIndex] || 'left'}
+                    onChange={(e) => {
+                        const newHandles = { ...(selectedCabinet.doorHandles || {}) };
+                        newHandles[selectedDoorIndex] = e.target.value;
+                        updateCabinet(selectedCabinet.id, 'doorHandles', newHandles);
+                    }}
+                    style={inputStyle}
+                    >
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                    </select>
+                </div>
                 </div>
             )}
 
