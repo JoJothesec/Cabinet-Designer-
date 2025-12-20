@@ -1564,6 +1564,7 @@ const CabinetDesigner = () => {
     // detailed cut list generation (truncated for space - keeping core structure)
     const generateCutList = () => {
     const cutList = [];
+    let assemblySequence = 1;
 
     cabinets.forEach(cabinet => {
         // box parts
@@ -1575,7 +1576,11 @@ const CabinetDesigner = () => {
         height: cabinet.height,
         thickness: cabinet.thickness,
         material: cabinet.material,
-        notes: 'Full height sides'
+        notes: 'Full height sides',
+        grainDirection: 'vertical',
+        edgebanding: 'front edge',
+        hardware: 'Shelf pins if adjustable',
+        assemblySequence: assemblySequence++
         });
 
         const topBottomWidth = cabinet.width - (cabinet.thickness * 2);
@@ -1587,7 +1592,11 @@ const CabinetDesigner = () => {
         height: cabinet.depth,
         thickness: cabinet.thickness,
         material: cabinet.material,
-        notes: 'Between sides'
+        notes: 'Between sides',
+        grainDirection: 'horizontal',
+        edgebanding: 'front edge',
+        hardware: 'None',
+        assemblySequence: assemblySequence++
         });
 
         // shelves
@@ -1600,7 +1609,11 @@ const CabinetDesigner = () => {
             height: cabinet.depth - 1,
             thickness: cabinet.thickness,
             material: cabinet.material,
-            notes: 'Adjustable'
+            notes: 'Adjustable',
+            grainDirection: 'horizontal',
+            edgebanding: 'front edge',
+            hardware: 'Shelf pins (4 per shelf)',
+            assemblySequence: assemblySequence++
         });
         }
 
@@ -1614,7 +1627,11 @@ const CabinetDesigner = () => {
             height: cabinet.height,
             thickness: 0.25,
             material: cabinet.material,
-            notes: '1/4" back'
+            notes: '1/4" back',
+            grainDirection: 'vertical',
+            edgebanding: 'none',
+            hardware: 'Brad nails or staples',
+            assemblySequence: assemblySequence++
         });
         }
 
@@ -1634,7 +1651,11 @@ const CabinetDesigner = () => {
                 height: spec.railWidth,
                 thickness: 0.75,
                 material: cabinet.material,
-                notes: 'Top/bottom'
+                notes: 'Top/bottom',
+                grainDirection: 'horizontal',
+                edgebanding: 'all edges',
+                hardware: 'Cope & stick joints',
+                assemblySequence: assemblySequence++
             });
             cutList.push({
                 cabinet: cabinet.name,
@@ -1644,7 +1665,11 @@ const CabinetDesigner = () => {
                 height: frontHeight,
                 thickness: 0.75,
                 material: cabinet.material,
-                notes: 'Left/right'
+                notes: 'Left/right',
+                grainDirection: 'vertical',
+                edgebanding: 'all edges',
+                hardware: 'Cope & stick joints',
+                assemblySequence: assemblySequence++
             });
             cutList.push({
                 cabinet: cabinet.name,
@@ -1654,7 +1679,11 @@ const CabinetDesigner = () => {
                 height: frontHeight - spec.railWidth * 2,
                 thickness: spec.panelThickness,
                 material: cabinet.material,
-                notes: 'Center panel'
+                notes: 'Center panel',
+                grainDirection: 'vertical',
+                edgebanding: 'none (fits in groove)',
+                hardware: 'None',
+                assemblySequence: assemblySequence++
             });
             } else {
             cutList.push({
@@ -1665,7 +1694,11 @@ const CabinetDesigner = () => {
                 height: frontHeight,
                 thickness: 0.75,
                 material: cabinet.material,
-                notes: cabinet.drawerStyle
+                notes: cabinet.drawerStyle,
+                grainDirection: 'vertical',
+                edgebanding: 'all edges',
+                hardware: 'Drawer pull',
+                assemblySequence: assemblySequence++
             });
             }
 
@@ -1679,7 +1712,11 @@ const CabinetDesigner = () => {
             height: boxHeight,
             thickness: DRAWER_BOX.sideThickness,
             material: 'plywood',
-            notes: '1/2" sides'
+            notes: '1/2" sides',
+            grainDirection: 'horizontal',
+            edgebanding: 'top edge only',
+            hardware: 'Drawer slides mount here',
+            assemblySequence: assemblySequence++
             });
             cutList.push({
             cabinet: cabinet.name,
@@ -1689,7 +1726,11 @@ const CabinetDesigner = () => {
             height: boxHeight,
             thickness: DRAWER_BOX.sideThickness,
             material: 'plywood',
-            notes: '1/2" F/B'
+            notes: '1/2" F/B',
+            grainDirection: 'horizontal',
+            edgebanding: 'top edge only',
+            hardware: 'Pocket screws or dados',
+            assemblySequence: assemblySequence++
             });
             cutList.push({
             cabinet: cabinet.name,
@@ -1699,7 +1740,11 @@ const CabinetDesigner = () => {
             height: cabinet.depth - 2,
             thickness: DRAWER_BOX.bottomThickness,
             material: 'plywood',
-            notes: '1/4" bottom'
+            notes: '1/4" bottom',
+            grainDirection: 'horizontal',
+            edgebanding: 'none',
+            hardware: 'Slides in groove',
+            assemblySequence: assemblySequence++
             });
         });
         }
@@ -1721,7 +1766,11 @@ const CabinetDesigner = () => {
             height: spec.railWidth,
             thickness: 0.75,
             material: cabinet.material,
-            notes: 'Shaker T/B'
+            notes: 'Shaker T/B',
+            grainDirection: 'horizontal',
+            edgebanding: 'all edges',
+            hardware: 'Cope & stick joints',
+            assemblySequence: assemblySequence++
             });
             cutList.push({
             cabinet: cabinet.name,
@@ -1731,7 +1780,11 @@ const CabinetDesigner = () => {
             height: doorHeight,
             thickness: 0.75,
             material: cabinet.material,
-            notes: 'Shaker L/R'
+            notes: 'Shaker L/R',
+            grainDirection: 'vertical',
+            edgebanding: 'all edges',
+            hardware: 'Cope & stick joints',
+            assemblySequence: assemblySequence++
             });
             cutList.push({
             cabinet: cabinet.name,
@@ -1741,7 +1794,11 @@ const CabinetDesigner = () => {
             height: doorHeight - spec.railWidth * 2,
             thickness: spec.panelThickness,
             material: cabinet.material,
-            notes: 'Center'
+            notes: 'Center',
+            grainDirection: 'vertical',
+            edgebanding: 'none (fits in groove)',
+            hardware: 'None',
+            assemblySequence: assemblySequence++
             });
         } else {
             cutList.push({
@@ -1752,7 +1809,11 @@ const CabinetDesigner = () => {
             height: doorHeight,
             thickness: 0.75,
             material: cabinet.material,
-            notes: cabinet.doorStyle
+            notes: cabinet.doorStyle,
+            grainDirection: 'vertical',
+            edgebanding: 'all edges',
+            hardware: 'Hinges (2 per door) + pull',
+            assemblySequence: assemblySequence++
             });
         }
         }
@@ -1767,7 +1828,11 @@ const CabinetDesigner = () => {
             height: 0,
             thickness: 0,
             material: 'hardware',
-            notes: '2 per door'
+            notes: '2 per door',
+            grainDirection: 'n/a',
+            edgebanding: 'n/a',
+            hardware: 'Install 2-3" from top/bottom',
+            assemblySequence: assemblySequence++
         });
         cutList.push({
             cabinet: cabinet.name,
@@ -1777,7 +1842,11 @@ const CabinetDesigner = () => {
             height: 0,
             thickness: 0,
             material: 'hardware',
-            notes: '1 per door'
+            notes: '1 per door',
+            grainDirection: 'n/a',
+            edgebanding: 'n/a',
+            hardware: 'Center or offset per design',
+            assemblySequence: assemblySequence++
         });
         }
 
@@ -1790,7 +1859,11 @@ const CabinetDesigner = () => {
             height: 0,
             thickness: 0,
             material: 'hardware',
-            notes: `${cabinet.depth}" pair/drawer`
+            notes: `${cabinet.depth}" pair/drawer`,
+            grainDirection: 'n/a',
+            edgebanding: 'n/a',
+            hardware: 'Mount flush with drawer bottom',
+            assemblySequence: assemblySequence++
         });
         cutList.push({
             cabinet: cabinet.name,
@@ -1800,7 +1873,11 @@ const CabinetDesigner = () => {
             height: 0,
             thickness: 0,
             material: 'hardware',
-            notes: '1 per drawer'
+            notes: '1 per drawer',
+            grainDirection: 'n/a',
+            edgebanding: 'n/a',
+            hardware: 'Center horizontally, upper 1/3',
+            assemblySequence: assemblySequence++
         });
         }
     });
@@ -2112,27 +2189,39 @@ const CabinetDesigner = () => {
             
             <h3>Cut List Details</h3>
             <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                 <tr style={{ background: '#ff6b35', color: '#000' }}>
-                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Cabinet</th>
-                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Part</th>
-                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>Qty</th>
-                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>Width</th>
-                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>Height</th>
-                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>Thick</th>
-                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Material</th>
-                <th style={{ border: '1px solid #444', padding: '6px', textAlign: 'left' }}>Notes</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'center' }}>Seq</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'left' }}>Cabinet</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'left' }}>Part</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'center' }}>Qty</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'right' }}>Width</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'right' }}>Height</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'right' }}>Thick</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'left' }}>Material</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'left' }}>Grain</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'left' }}>Edgebanding</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'left' }}>Hardware/Notes</th>
+                <th style={{ border: '1px solid #444', padding: '4px', textAlign: 'left' }}>Notes</th>
                 </tr>
                 {cutList.map((item, idx) => (
                 <tr key={idx}>
-                    <td style={{ border: '1px solid #444', padding: '6px' }}>{item.cabinet}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px' }}>{item.part}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'center' }}>{item.quantity}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.width > 0 ? formatMeasurement(item.width, measurementFormat) : '-'}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.height > 0 ? formatMeasurement(item.height, measurementFormat) : '-'}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px', textAlign: 'right' }}>{item.thickness > 0 ? item.thickness : '-'}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px' }}>{item.material}</td>
-                    <td style={{ border: '1px solid #444', padding: '6px', fontSize: '11px' }}>{item.notes}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px', textAlign: 'center', fontWeight: 'bold', background: '#2a2a2a' }}>{item.assemblySequence || '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px' }}>{item.cabinet}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px' }}>{item.part}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px', textAlign: 'center' }}>{item.quantity}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px', textAlign: 'right' }}>{item.width > 0 ? formatMeasurement(item.width, measurementFormat) : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px', textAlign: 'right' }}>{item.height > 0 ? formatMeasurement(item.height, measurementFormat) : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px', textAlign: 'right' }}>{item.thickness > 0 ? item.thickness : '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px' }}>{item.material}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px' }}>
+                        <span style={{ fontSize: '10px', padding: '2px 6px', background: item.grainDirection === 'vertical' ? '#4a5568' : '#2d3748', borderRadius: '3px', display: 'inline-block' }}>
+                            {item.grainDirection === 'vertical' ? '↕️' : item.grainDirection === 'horizontal' ? '↔️' : item.grainDirection || '-'}
+                        </span>
+                    </td>
+                    <td style={{ border: '1px solid #444', padding: '4px', fontSize: '10px' }}>{item.edgebanding || '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px', fontSize: '10px' }}>{item.hardware || '-'}</td>
+                    <td style={{ border: '1px solid #444', padding: '4px', fontSize: '10px' }}>{item.notes}</td>
                 </tr>
                 ))}
             </table>
@@ -3033,7 +3122,7 @@ const CabinetDesigner = () => {
             {/* right sidebar - IMPROVED DRAWER CONTROLS */}
             {selectedCabinet && (
             <div style={{
-            width: '340px',
+            width: '420px',
             background: '#1a1a1a',
             borderLeft: '1px solid #333',
             overflowY: 'auto',
@@ -3184,15 +3273,15 @@ const CabinetDesigner = () => {
                 </select>
             </div>
 
-            <div style={{ ...inputGroupStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ ...inputGroupStyle, display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input
                 type="checkbox"
                 id="doubleDoor"
                 checked={selectedCabinet.doubleDoor || false}
                 onChange={(e) => updateCabinet(selectedCabinet.id, 'doubleDoor', e.target.checked)}
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: 'pointer', flexShrink: 0 }}
                 />
-                <label htmlFor="doubleDoor" style={{ ...labelStyle, margin: 0, cursor: 'pointer' }}>
+                <label htmlFor="doubleDoor" style={{ ...labelStyle, margin: 0, cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }}>
                 Double Door
                 </label>
             </div>
@@ -3363,13 +3452,13 @@ const CabinetDesigner = () => {
                 </select>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
                 <button
                     onClick={() => addDrawer(selectedCabinet.id)}
-                    style={{...buttonStyle, flex: 1, justifyContent: 'center'}}
+                    style={{...buttonStyle, flex: 1, justifyContent: 'center', fontSize: '11px', padding: '4px 6px'}}
                 >
-                    <Plus size={16} />
-                    Add Drawer
+                    <Plus size={12} />
+                    Add
                 </button>
                 <button
                     onClick={() => applySmartDrawerDefaults(selectedCabinet.id)}
@@ -3378,11 +3467,13 @@ const CabinetDesigner = () => {
                         flex: 1, 
                         justifyContent: 'center',
                         background: '#4a90e2',
-                        border: '1px solid #5aa3ff'
+                        border: '1px solid #5aa3ff',
+                        fontSize: '11px',
+                        padding: '4px 6px'
                     }}
                     title="Auto-calculate and position drawers evenly with optimal heights"
                 >
-                    ✨ Smart Fill
+                    ✨ Smart
                 </button>
             </div>
 
