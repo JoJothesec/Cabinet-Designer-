@@ -919,12 +919,24 @@ const CabinetDesigner = () => {
     rightSide.castShadow = true;
     group.add(rightSide);
 
-    const topGeo = new THREE.BoxGeometry(width, thickness, depth);
-    const top = new THREE.Mesh(topGeo, material);
-    top.position.set(xOffset + width / 2, height - thickness / 2, 0);
-    top.castShadow = true;
-    group.add(top);
+    // top stretchers - front and back (runs left to right)
+    const stretcher_thickness = 1.5;
+    
+    // Front stretcher (runs left to right)
+    const frontStretcher_geo = new THREE.BoxGeometry(width - thickness * 2, stretcher_thickness, thickness * 3);
+    const frontStretcher = new THREE.Mesh(frontStretcher_geo, material);
+    frontStretcher.position.set(xOffset + width / 2, height - stretcher_thickness / 2, depth / 2 - thickness * 1.5);
+    frontStretcher.castShadow = true;
+    group.add(frontStretcher);
 
+    // Back stretcher (runs left to right)
+    const backStretcher_geo = new THREE.BoxGeometry(width - thickness * 2, stretcher_thickness, thickness * 3);
+    const backStretcher = new THREE.Mesh(backStretcher_geo, material);
+    backStretcher.position.set(xOffset + width / 2, height - stretcher_thickness / 2, -depth / 2 + thickness * 1.5);
+    backStretcher.castShadow = true;
+    group.add(backStretcher);
+
+    const topGeo = new THREE.BoxGeometry(width, thickness, depth);
     const bottom = new THREE.Mesh(topGeo, material);
     const bottomY = cabinet.toekick ? cabinet.toekickHeight : 0;
     bottom.position.set(xOffset + width / 2, bottomY + thickness / 2, 0);
