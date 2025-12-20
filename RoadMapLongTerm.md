@@ -36,8 +36,6 @@
   - Sink cutout placement
   - Material selection
 
-**Estimated Time:** 12-16 weeks
-
 ### Vision 2: Realistic Rendering
 - [ ] **Photo-Realistic Rendering** (maybe paid for)
   - Ray tracing integration
@@ -64,8 +62,6 @@
   - Multiple design options
   - Cost comparison views
   - Print-ready presentation packets
-
-**Estimated Time:** 16-20 weeks
 
 ### Vision 3: Business & Collaboration Tools
 - [ ] **Quote Generation System** (maybe paid for)
@@ -96,8 +92,6 @@
   - Activity tracking
   - Version control
 
-**Estimated Time:** 20+ weeks
-
 ### Vision 4: Mobile & Platform Expansion
 - [ ] **Responsive Design**
   - Tablet-optimized interface
@@ -116,8 +110,6 @@
   - Plugin system
   - Import from SketchUp
   - Export to AutoCAD
-
-**Estimated Time:** 24+ weeks
 
 ### Vision 5: Learning & Support
 - [ ] **Interactive Tutorials**
@@ -138,4 +130,3 @@
   - Cost optimization suggestions
   - Industry standard compliance checks
 
-**Estimated Time:** Ongoing

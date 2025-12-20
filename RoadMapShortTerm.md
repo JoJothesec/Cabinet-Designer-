@@ -38,9 +38,6 @@
 
 - **Camera Presets** ✅
 
-**Estimated Time:** 2-3 weeks  
-**Impact:** Medium-High - improves user experience
-
 ### Priority 3: Enhanced Measurements
 - [ ] **Validation & Constraints**
   - Min/max dimension warnings
@@ -53,9 +50,6 @@
   - Auto-position drawers evenly
   - Suggest door counts based on width
   - Standard reveal calculations
-
-**Estimated Time:** 1-2 weeks  
-**Impact:** Medium - reduces user errors
 
 ### Priority 4: Export Improvements
 - [ ] **Enhanced Cut Lists**
@@ -75,6 +69,3 @@
   - Multiple page support
   - Shop drawing templates
   - QR codes for digital reference
-
-**Estimated Time:** 2 weeks  
-**Impact:** High - improves practical usability

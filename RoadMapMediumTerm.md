@@ -20,9 +20,6 @@
   - 3D walkthrough mode
   - 2D section cuts
 
-**Estimated Time:** 6-8 weeks  
-**Impact:** Critical - transforms into professional tool
-
 ### Feature Set 2: Corner & Specialty Cabinets
 - [ ] **Corner Solutions**
   - Lazy Susan cabinets
@@ -39,9 +36,6 @@
   - Spice pullouts
   - Microwave shelf
   - Open shelving units
-
-**Estimated Time:** 4-5 weeks  
-**Impact:** High - enables complex designs
 
 ### Feature Set 3: Advanced Cut Optimization (maybe paid for)
 - [ ] **Sheet Optimization**
@@ -61,9 +55,6 @@
   - G-code generation (basic)
   - Tool path optimization
   - Batch processing
-
-**Estimated Time:** 6-8 weeks  
-**Impact:** Medium-High - reduces material costs
 
 ### Feature Set 4: Cabinet Templates & Library
 - [ ] **Standard Templates**
@@ -85,9 +76,6 @@
   - Leg/foot styles
   - Crown molding profiles
 
-**Estimated Time:** 3-4 weeks  
-**Impact:** Medium - speeds up design process
-
 ### Feature Set 5: Better Project Management
 - [ ] **Cloud Storage Option** (maybe paid for)
   - Optional account system
@@ -106,8 +94,5 @@
   - Import external project files
   - JSON format support
   - Backwards compatibility
-
-**Estimated Time:** 4-5 weeks  
-**Impact:** Medium - improves workflow
 
 ---
