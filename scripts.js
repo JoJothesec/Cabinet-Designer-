@@ -157,15 +157,12 @@ const createWoodTexture = (color) => {
 const CabinetDesigner = () => {
     const [cabinets, setCabinets] = useState([]);
     const [selectedCabinetId, setSelectedCabinetId] = useState(null);
+    const [selectedDrawerId, setSelectedDrawerId] = useState(null);
+    const [selectedDoorIndex, setSelectedDoorIndex] = useState(null);
+    const [hiddenDoors, setHiddenDoors] = useState(new Set()); // Set of "cabinetId-doorIndex" strings
+    const [hiddenDrawers, setHiddenDrawers] = useState(new Set()); // Set of drawer IDs
     const [viewMode, setViewMode] = useState('3d');
     const [projectName, setProjectName] = useState('Untitled Project');
-
-    const [materialCosts, setMaterialCosts] = useState({
-    plywood: 45,
-    mdf: 30,
-    hardwood: 85,
-    melamine: 40
-    });
 
     const [laborRate, setLaborRate] = useState(50); // per hour
 
@@ -176,6 +173,8 @@ const CabinetDesigner = () => {
     const cameraRef = useRef(null);
     const animationRef = useRef(null);
     const woodTextureCache = useRef({});
+    const raycaster = useRef(new THREE.Raycaster());
+    const mouse = useRef(new THREE.Vector2());
 
     const isDragging = useRef(false);
     const previousMousePosition = useRef({ x: 0, y: 0 });
@@ -282,10 +281,34 @@ const CabinetDesigner = () => {
         camera.updateProjectionMatrix();
         renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
     };
+    
+    const handleKeyDown = (e) => {
+        if (e.key === 'Delete') {
+        if (selectedDrawerId && selectedCabinetId) {
+            deleteDrawer(selectedCabinetId, selectedDrawerId);
+            setSelectedDrawerId(null);
+        } else if (selectedDoorIndex !== null && selectedCabinetId) {
+            const cabinet = cabinets.find(c => c.id === selectedCabinetId);
+            if (cabinet && cabinet.doors > 0) {
+            updateCabinet(selectedCabinetId, 'doors', cabinet.doors - 1);
+            setSelectedDoorIndex(null);
+            }
+        } else if (selectedCabinetId) {
+            if (confirm('Delete this cabinet and all its contents?')) {
+            handleDeleteCabinet(selectedCabinetId);
+            }
+        }
+        }
+    };
+    
     window.addEventListener('resize', handleResize);
+    window.addEventListener('keydown', handleKeyDown);
+    canvasRef.current?.addEventListener('wheel', handleWheel, { passive: false });
 
     return () => {
         window.removeEventListener('resize', handleResize);
+        window.removeEventListener('keydown', handleKeyDown);
+        canvasRef.current?.removeEventListener('wheel', handleWheel);
         if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
         }
@@ -307,6 +330,57 @@ const CabinetDesigner = () => {
     const handleMouseDown = (e) => {
     isDragging.current = true;
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
+    };
+    
+    const handleDoubleClick = (e) => {
+    if (!canvasRef.current) return;
+    
+    // Perform raycasting to select cabinet, door, or drawer on double-click
+    const rect = canvasRef.current.getBoundingClientRect();
+    mouse.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    
+    raycaster.current.setFromCamera(mouse.current, cameraRef.current);
+    const intersects = raycaster.current.intersectObjects(sceneRef.current.children, true);
+    
+    // Check intersected objects and their parents for selection data
+    for (let intersection of intersects) {
+        let obj = intersection.object;
+        let found = false;
+        
+        // Traverse up the object hierarchy looking for userData
+        while (obj && !found) {
+            // Check if this is a drawer
+            if (obj.userData.drawerId) {
+                setSelectedCabinetId(obj.userData.cabinetId);
+                setSelectedDrawerId(obj.userData.drawerId);
+                setSelectedDoorIndex(null);
+                found = true;
+                break;
+            }
+            // Check if this is a door
+            if (obj.userData.isDoor) {
+                setSelectedCabinetId(obj.userData.cabinetId);
+                setSelectedDrawerId(null);
+                setSelectedDoorIndex(obj.userData.doorIndex);
+                found = true;
+                break;
+            }
+            // Check if this is a cabinet
+            if (obj.userData.cabinetId && !obj.userData.isDoor && !obj.userData.drawerId) {
+                setSelectedCabinetId(obj.userData.cabinetId);
+                setSelectedDrawerId(null);
+                setSelectedDoorIndex(null);
+                found = true;
+                break;
+            }
+            obj = obj.parent;
+        }
+        
+        if (found) {
+            return;
+        }
+    }
     };
 
     const handleMouseMove = (e) => {
@@ -336,7 +410,7 @@ const CabinetDesigner = () => {
     updateCameraPosition(cameraRef.current);
     };
 
-    // update 3D when cabinets change
+    // update 3D when cabinets change or selection changes
     useEffect(() => {
     if (!sceneRef.current) return;
 
@@ -354,12 +428,12 @@ const CabinetDesigner = () => {
         sceneRef.current.add(cabinetGroup);
         xOffset += cabinet.width + 2;
     });
-    }, [cabinets, selectedCabinetId]);
+    }, [cabinets, selectedCabinetId, selectedDrawerId, selectedDoorIndex, hiddenDoors, hiddenDrawers]);
 
     // create door/drawer front with details
-    const createDoorFront = (width, height, style, material, position, xOffset) => {
+    const createDoorFront = (width, height, style, material, position, xOffset, isHighlighted = false) => {
     const isSelected = selectedCabinetId && cabinets.find(c => c.id === selectedCabinetId);
-    const doorColor = isSelected?.id === selectedCabinetId ? 0xaa5533 : 0x6B5444;
+    const doorColor = isHighlighted ? 0xff8855 : (isSelected?.id === selectedCabinetId ? 0xaa5533 : 0x6B5444);
 
     if (!woodTextureCache.current[doorColor]) {
         woodTextureCache.current[doorColor] = createWoodTexture(`#${doorColor.toString(16).padStart(6, '0')}`);
@@ -367,8 +441,8 @@ const CabinetDesigner = () => {
 
     const doorMaterial = new THREE.MeshStandardMaterial({
         map: woodTextureCache.current[doorColor],
-        roughness: 0.4,
-        metalness: 0.1
+        roughness: isHighlighted ? 0.2 : 0.4,
+        metalness: isHighlighted ? 0.3 : 0.1
     });
 
     const group = new THREE.Group();
@@ -484,10 +558,15 @@ const CabinetDesigner = () => {
     };
 
     // create drawer box
-    const createDrawerBox = (width, depth, drawerFrontHeight, position) => {
+    const createDrawerBox = (width, depth, drawerFrontHeight, position, isHighlighted = false) => {
     const group = new THREE.Group();
 
-    const boxMat = new THREE.MeshStandardMaterial({ color: 0xD4A574, roughness: 0.6 });
+    const boxColor = isHighlighted ? 0xff8855 : 0xD4A574;
+    const boxMat = new THREE.MeshStandardMaterial({ 
+        color: boxColor, 
+        roughness: isHighlighted ? 0.2 : 0.6,
+        metalness: isHighlighted ? 0.3 : 0
+    });
 
     const boxHeight = Math.min(DRAWER_BOX.frontBackHeight, drawerFrontHeight - 1);
 
@@ -616,6 +695,9 @@ const CabinetDesigner = () => {
     // drawers - properly positioned
     if (cabinet.drawers && cabinet.drawers.length > 0) {
         cabinet.drawers.forEach((drawer, i) => {
+        // Skip rendering if drawer is hidden
+        if (hiddenDrawers.has(drawer.id)) return;
+        
         const drawerY = drawer.startY + drawer.height / 2;
 
         const frontPos = new THREE.Vector3(
@@ -630,8 +712,12 @@ const CabinetDesigner = () => {
             cabinet.drawerStyle || 'shaker',
             cabinet.material,
             frontPos,
-            xOffset
+            xOffset,
+            selectedDrawerId === drawer.id // highlight if selected
         );
+        drawerFront.userData.cabinetId = cabinet.id;
+        drawerFront.userData.drawerId = drawer.id;
+        drawerFront.userData.isDrawer = true;
         group.add(drawerFront);
 
         const boxPos = new THREE.Vector3(
@@ -639,7 +725,10 @@ const CabinetDesigner = () => {
             drawerY,
             0
         );
-        const drawerBox = createDrawerBox(width - 2, depth, drawer.height, boxPos);
+        const drawerBox = createDrawerBox(width - 2, depth, drawer.height, boxPos, selectedDrawerId === drawer.id);
+        drawerBox.userData.cabinetId = cabinet.id;
+        drawerBox.userData.drawerId = drawer.id;
+        drawerBox.userData.isDrawer = true;
         group.add(drawerBox);
         });
     }
@@ -655,6 +744,10 @@ const CabinetDesigner = () => {
         const doorY = highestDrawerY + doorHeight / 2 + 0.5;
 
         for (let i = 0; i < cabinet.doors; i++) {
+        // Skip rendering if door is hidden
+        const doorKey = `${cabinet.id}-${i}`;
+        if (hiddenDoors.has(doorKey)) continue;
+        
         const doorX = xOffset + (doorWidth + 1) * i + doorWidth / 2 + (width - (doorWidth + 1) * cabinet.doors + 1) / 2;
         const doorPos = new THREE.Vector3(doorX, doorY, depth / 2 + 0.375);
 
@@ -664,8 +757,12 @@ const CabinetDesigner = () => {
             cabinet.doorStyle || 'shaker',
             cabinet.material,
             doorPos,
-            xOffset
+            xOffset,
+            selectedDoorIndex === i // highlight if selected
         );
+        door.userData.cabinetId = cabinet.id;
+        door.userData.doorIndex = i;
+        door.userData.isDoor = true;
         group.add(door);
         }
     }
@@ -730,6 +827,12 @@ const CabinetDesigner = () => {
             ? Math.max(...existingDrawers.map(d => d.startY + d.height))
             : doorStartY;
 
+        // Check if adding a 6-inch drawer would exceed cabinet height
+        if (topOfLastDrawer + 6 > c.height) {
+            alert('Cannot add drawer: would exceed cabinet height. Minimum drawer height is 2 inches.');
+            return c;
+        }
+
         const newDrawer = {
             id: Date.now(),
             height: 6,
@@ -745,9 +848,33 @@ const CabinetDesigner = () => {
     const updateDrawer = (cabinetId, drawerId, property, value) => {
     setCabinets(cabinets.map(c => {
         if (c.id === cabinetId) {
-        const updatedDrawers = c.drawers.map(d =>
-            d.id === drawerId ? { ...d, [property]: parseFloat(value) } : d
-        );
+        const numValue = parseFloat(value);
+        const updatedDrawers = c.drawers.map(d => {
+            if (d.id === drawerId) {
+            // If updating height, enforce minimum 2 inches
+            if (property === 'height') {
+                if (numValue < 2) {
+                alert('Drawer height must be at least 2 inches');
+                return d;
+                }
+                // Check if new height would exceed cabinet height
+                const otherDrawersHeight = c.drawers.filter(dr => dr.id !== drawerId).reduce((sum, dr) => sum + dr.height, 0);
+                if (d.startY + numValue > c.height) {
+                alert(`Drawer height cannot exceed remaining cabinet space. Maximum: ${(c.height - d.startY).toFixed(1)} inches`);
+                return d;
+                }
+            }
+            // If updating position, make sure it doesn't push drawer past cabinet height
+            if (property === 'startY') {
+                if (numValue + d.height > c.height) {
+                alert('Drawer position would exceed cabinet height');
+                return d;
+                }
+            }
+            return { ...d, [property]: numValue };
+            }
+            return d;
+        });
         return { ...c, drawers: updatedDrawers };
         }
         return c;
@@ -1055,7 +1182,6 @@ const CabinetDesigner = () => {
         const project = JSON.parse(saved);
         setProjectName(project.name);
         setCabinets(project.cabinets);
-        setMaterialCosts(project.materialCosts);
         setLaborRate(project.laborRate || 50);
         alert('Project loaded!');
     } else {
@@ -1216,59 +1342,11 @@ const CabinetDesigner = () => {
 
         {/* center view */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{
-            display: 'flex',
-            gap: '8px',
-            padding: '12px 16px',
-            background: '#1a1a1a',
-            borderBottom: '1px solid #333'
-            }}>
-            <button
-                onClick={() => setViewMode('3d')}
-                style={{
-                ...tabStyle,
-                background: viewMode === '3d' ? '#ff6b35' : '#252525'
-                }}
-            >
-                <Camera size={16} />
-                3D View
-            </button>
-            <button
-                onClick={() => setViewMode('cutlist')}
-                style={{
-                ...tabStyle,
-                background: viewMode === 'cutlist' ? '#ff6b35' : '#252525'
-                }}
-            >
-                <Ruler size={16} />
-                Cut List
-            </button>
-            <button
-                onClick={() => setViewMode('materials')}
-                style={{
-                ...tabStyle,
-                background: viewMode === 'materials' ? '#ff6b35' : '#252525'
-                }}
-            >
-                <FileText size={16} />
-                Materials
-            </button>
-            <button
-                onClick={() => setViewMode('pricing')}
-                style={{
-                ...tabStyle,
-                background: viewMode === 'pricing' ? '#ff6b35' : '#252525'
-                }}
-            >
-                <DollarSign size={16} />
-                Pricing
-            </button>
-            </div>
-
-            <div style={{ flex: 1, overflow: 'auto', background: '#2d2d2d' }}>
-            <div
+            <div 
                 ref={containerRef}
                 style={{
+                flex: 1,
+                position: 'relative',
                 width: '100%',
                 height: '100%',
                 display: viewMode === '3d' ? 'block' : 'none'
@@ -1280,7 +1358,7 @@ const CabinetDesigner = () => {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
-                onWheel={handleWheel}
+                onDoubleClick={handleDoubleClick}
                 style={{ width: '100%', height: '100%', display: 'block' }}
                 />
             </div>
@@ -1400,10 +1478,9 @@ const CabinetDesigner = () => {
                 </div>
             )}
             </div>
-        </div>
 
-        {/* right sidebar - IMPROVED DRAWER CONTROLS */}
-        {selectedCabinet && (
+            {/* right sidebar - IMPROVED DRAWER CONTROLS */}
+            {selectedCabinet && (
             <div style={{
             width: '340px',
             background: '#1a1a1a',
@@ -1430,6 +1507,7 @@ const CabinetDesigner = () => {
                 <label style={labelStyle}>Width</label>
                 <input
                 type="number"
+                max="168"
                 value={selectedCabinet.width}
                 onChange={(e) => updateCabinet(selectedCabinet.id, 'width', parseFloat(e.target.value))}
                 style={inputStyle}
@@ -1440,6 +1518,7 @@ const CabinetDesigner = () => {
                 <label style={labelStyle}>Height</label>
                 <input
                 type="number"
+                max="84"
                 value={selectedCabinet.height}
                 onChange={(e) => updateCabinet(selectedCabinet.id, 'height', parseFloat(e.target.value))}
                 style={inputStyle}
@@ -1450,6 +1529,7 @@ const CabinetDesigner = () => {
                 <label style={labelStyle}>Depth</label>
                 <input
                 type="number"
+                max="120"
                 value={selectedCabinet.depth}
                 onChange={(e) => updateCabinet(selectedCabinet.id, 'depth', parseFloat(e.target.value))}
                 style={inputStyle}
@@ -1467,20 +1547,6 @@ const CabinetDesigner = () => {
                 >
                 <option value="frameless">Frameless (32mm)</option>
                 <option value="faceFrame">Face Frame</option>
-                </select>
-            </div>
-
-            <div style={inputGroupStyle}>
-                <label style={labelStyle}>Material</label>
-                <select
-                value={selectedCabinet.material}
-                onChange={(e) => updateCabinet(selectedCabinet.id, 'material', e.target.value)}
-                style={inputStyle}
-                >
-                <option value="plywood">Plywood</option>
-                <option value="mdf">MDF</option>
-                <option value="hardwood">Hardwood</option>
-                <option value="melamine">Melamine</option>
                 </select>
             </div>
 
@@ -1505,11 +1571,88 @@ const CabinetDesigner = () => {
                 <input
                 type="number"
                 min="0"
+                max={Math.floor(selectedCabinet.width / 5)}
                 value={selectedCabinet.doors}
-                onChange={(e) => updateCabinet(selectedCabinet.id, 'doors', parseInt(e.target.value))}
+                onChange={(e) => {
+                    const newDoors = parseInt(e.target.value);
+                    updateCabinet(selectedCabinet.id, 'doors', newDoors);
+                    // Clear door selection if no doors
+                    if (newDoors === 0) setSelectedDoorIndex(null);
+                }}
                 style={inputStyle}
                 />
             </div>
+
+            {selectedCabinet.doors > 0 && (
+                <div style={{ background: '#252525', padding: '12px', borderRadius: '4px', marginBottom: '16px' }}>
+                {Array.from({length: selectedCabinet.doors}).map((_, i) => (
+                    <div 
+                        key={i} 
+                        onClick={() => setSelectedDoorIndex(i)}
+                        style={{
+                        marginBottom: '12px',
+                        paddingBottom: '12px',
+                        borderBottom: i < selectedCabinet.doors - 1 ? '1px solid #333' : 'none',
+                        cursor: 'pointer',
+                        background: selectedDoorIndex === i ? '#333' : 'transparent',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: selectedDoorIndex === i ? '2px solid #ff6b35' : '2px solid transparent',
+                        transition: 'all 0.2s'
+                        }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '12px', color: '#ff6b35', fontWeight: 'bold' }}>
+                        Door {i + 1}
+                        </span>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const doorKey = `${selectedCabinet.id}-${i}`;
+                            const newHidden = new Set(hiddenDoors);
+                            if (newHidden.has(doorKey)) {
+                                newHidden.delete(doorKey);
+                            } else {
+                                newHidden.add(doorKey);
+                            }
+                            setHiddenDoors(newHidden);
+                        }}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: hiddenDoors.has(`${selectedCabinet.id}-${i}`) ? '#888' : '#ff6b35',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            fontSize: '11px'
+                        }}
+                        title={hiddenDoors.has(`${selectedCabinet.id}-${i}`) ? 'Show door' : 'Hide door'}
+                        >
+                        {hiddenDoors.has(`${selectedCabinet.id}-${i}`) ? '👁️' : '🚪'}
+                        </button>
+                        <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedCabinet.doors > 0) {
+                            updateCabinet(selectedCabinet.id, 'doors', selectedCabinet.doors - 1);
+                            if (selectedDoorIndex === i) setSelectedDoorIndex(null);
+                            }
+                        }}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#ff6b35',
+                            cursor: 'pointer',
+                            padding: '4px'
+                        }}
+                        >
+                        <Trash2 size={14} />
+                        </button>
+                        </div>
+                    </div>
+                    </div>
+                ))}
+                </div>
+            )}
 
             <div className="section-header">DRAWERS</div>
 
@@ -1537,17 +1680,54 @@ const CabinetDesigner = () => {
             {selectedCabinet.drawers && selectedCabinet.drawers.length > 0 && (
                 <div style={{ background: '#252525', padding: '12px', borderRadius: '4px', marginBottom: '16px' }}>
                 {selectedCabinet.drawers.map((drawer, i) => (
-                    <div key={drawer.id} style={{
-                    marginBottom: '12px',
-                    paddingBottom: '12px',
-                    borderBottom: i < selectedCabinet.drawers.length - 1 ? '1px solid #333' : 'none'
-                    }}>
+                    <div 
+                        key={drawer.id} 
+                        onClick={() => setSelectedDrawerId(drawer.id)}
+                        style={{
+                        marginBottom: '12px',
+                        paddingBottom: '12px',
+                        borderBottom: i < selectedCabinet.drawers.length - 1 ? '1px solid #333' : 'none',
+                        cursor: 'pointer',
+                        background: selectedDrawerId === drawer.id ? '#333' : 'transparent',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: selectedDrawerId === drawer.id ? '2px solid #ff6b35' : '2px solid transparent',
+                        transition: 'all 0.2s'
+                        }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <span style={{ fontSize: '12px', color: '#ff6b35', fontWeight: 'bold' }}>
                         Drawer {i + 1}
                         </span>
+                        <div style={{ display: 'flex', gap: '4px' }}>
                         <button
-                        onClick={() => deleteDrawer(selectedCabinet.id, drawer.id)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const newHidden = new Set(hiddenDrawers);
+                            if (newHidden.has(drawer.id)) {
+                                newHidden.delete(drawer.id);
+                            } else {
+                                newHidden.add(drawer.id);
+                            }
+                            setHiddenDrawers(newHidden);
+                        }}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: hiddenDrawers.has(drawer.id) ? '#888' : '#ff6b35',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            fontSize: '11px'
+                        }}
+                        title={hiddenDrawers.has(drawer.id) ? 'Show drawer' : 'Hide drawer'}
+                        >
+                        {hiddenDrawers.has(drawer.id) ? '👁️' : '🔲'}
+                        </button>
+                        <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            deleteDrawer(selectedCabinet.id, drawer.id);
+                            setSelectedDrawerId(null);
+                        }}
                         style={{
                             background: 'transparent',
                             border: 'none',
@@ -1558,6 +1738,7 @@ const CabinetDesigner = () => {
                         >
                         <Trash2 size={14} />
                         </button>
+                        </div>
                     </div>
                     <div style={{ marginBottom: '8px' }}>
                         <label style={{ fontSize: '10px', color: '#888', display: 'block', marginBottom: '4px' }}>
@@ -1565,6 +1746,7 @@ const CabinetDesigner = () => {
                         </label>
                         <input
                         type="number"
+                        min="2"
                         step="0.5"
                         value={drawer.height.toFixed(2)}
                         onChange={(e) => updateDrawer(selectedCabinet.id, drawer.id, 'height', e.target.value)}
@@ -1698,7 +1880,7 @@ const CabinetDesigner = () => {
                 />
             </div>
             </div>
-        )}
+            )}
         </div>
     </div>
     );
