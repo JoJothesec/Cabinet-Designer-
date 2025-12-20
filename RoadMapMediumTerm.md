@@ -43,7 +43,7 @@
 **Estimated Time:** 4-5 weeks  
 **Impact:** High - enables complex designs
 
-### Feature Set 3: Advanced Cut Optimization
+### Feature Set 3: Advanced Cut Optimization (maybe paid for)
 - [ ] **Sheet Optimization**
   - Nesting algorithm for plywood sheets
   - Minimize waste calculations
@@ -56,7 +56,7 @@
   - Cross-cut lists
   - Minimize board footage
 
-- [ ] **Export to CNC**
+- [ ] **Export to CNC** (maybe paid for)
   - DXF export for CNC routers
   - G-code generation (basic)
   - Tool path optimization
@@ -89,7 +89,7 @@
 **Impact:** Medium - speeds up design process
 
 ### Feature Set 5: Better Project Management
-- [ ] **Cloud Storage Option**
+- [ ] **Cloud Storage Option** (maybe paid for)
   - Optional account system
   - Cloud project sync
   - Access from multiple devices

@@ -24,24 +24,19 @@
 **Impact:** High - enables complete kitchen designs
 
 ### Priority 2: Improved 3D Visualization
-- [ ] **Material Textures**
+- [ ] **Material Textures** (maybe paid for)
   - Add realistic wood grain textures
   - Implement proper UV mapping
   - Add edge banding visualization
   - Support for different finishes (stain, paint)
 
-- [ ] **Better Lighting**
+- [ ] **Better Lighting** (maybe paid for)
   - Add ambient occlusion
   - Shadow quality improvements
   - Multiple light sources
   - Day/night mode toggle
 
-- [ ] **Camera Presets**
-  - [x] Front view
-  - [x] Side view
-  - [x] Top view
-  - [x] Isometric view
-  - [x] uick preset buttons
+- **Camera Presets** ✅
 
 **Estimated Time:** 2-3 weeks  
 **Impact:** Medium-High - improves user experience
