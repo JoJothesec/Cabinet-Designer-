@@ -193,7 +193,7 @@ const CabinetDesigner = () => {
         depth: 24,
         material: 'plywood',
         thickness: 0.75,
-        doors: 1,
+        doors: 0,
         doorStyle: 'shaker',
         doubleDoor: false,
         doorDrawerGap: 0.125, // 1/8" default gap
@@ -205,6 +205,7 @@ const CabinetDesigner = () => {
         backPanel: true,
         toekick: true,
         toekickHeight: 4,
+        toekickDepth: 3,
         color: '#8B7355',
         edgebanding: true,
         edgebandColor: '#8B7355',
@@ -662,12 +663,18 @@ const CabinetDesigner = () => {
         topRail.castShadow = true;
         group.add(topRail);
 
-        // bottom rail
+        // bottom rail - positioned to sit on top of toe kick
         const bottomY = cabinet.toekick ? cabinet.toekickHeight : 0;
         const bottomRailGeo = new THREE.BoxGeometry(width - thickness * 2, frameWidth, frameThickness);
-        const bottomRail = new THREE.Mesh(bottomRailGeo, material);
+        const bottomRailMaterial = new THREE.MeshStandardMaterial({ 
+            color: material.color,
+            roughness: 0.4,
+            metalness: 0.0
+        });
+        const bottomRail = new THREE.Mesh(bottomRailGeo, bottomRailMaterial);
         bottomRail.position.set(xOffset + width / 2, bottomY + frameWidth / 2, depth / 2 - frameThickness / 2);
         bottomRail.castShadow = true;
+        bottomRail.receiveShadow = true;
         group.add(bottomRail);
 
         // left stile
@@ -773,10 +780,17 @@ const CabinetDesigner = () => {
 
     // toekick
     if (cabinet.toekick) {
-        const toekickGeo = new THREE.BoxGeometry(width, cabinet.toekickHeight, thickness);
-        const toekickMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const toekickDepth = cabinet.toekickDepth || 3;
+        const toekickGeo = new THREE.BoxGeometry(width, cabinet.toekickHeight, toekickDepth);
+        const toekickMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a1a,
+            roughness: 0.6,
+            metalness: 0.1
+        });
         const toekick = new THREE.Mesh(toekickGeo, toekickMaterial);
-        toekick.position.set(xOffset + width / 2, cabinet.toekickHeight / 2, depth / 2 - thickness / 2);
+        toekick.position.set(xOffset + width / 2, cabinet.toekickHeight / 2, depth / 2 - toekickDepth / 2);
+        toekick.castShadow = true;
+        toekick.receiveShadow = true;
         group.add(toekick);
     }
 
@@ -1615,7 +1629,7 @@ const CabinetDesigner = () => {
                 style={{ cursor: 'pointer' }}
                 />
                 <label htmlFor="doubleDoor" style={{ ...labelStyle, margin: 0, cursor: 'pointer' }}>
-                Double Door (no width limit)
+                Double Door
                 </label>
             </div>
 
@@ -1957,6 +1971,35 @@ const CabinetDesigner = () => {
                 />
                 <label style={{ ...labelStyle, marginBottom: 0 }}>Toekick</label>
             </div>
+
+            {selectedCabinet.toekick && (
+                <>
+                <div style={inputGroupStyle}>
+                    <label style={labelStyle}>Toekick Height (in)</label>
+                    <input
+                    type="number"
+                    min="1"
+                    max="8"
+                    step="0.5"
+                    value={selectedCabinet.toekickHeight}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'toekickHeight', parseFloat(e.target.value))}
+                    style={inputStyle}
+                    />
+                </div>
+                <div style={inputGroupStyle}>
+                    <label style={labelStyle}>Toekick Depth (in)</label>
+                    <input
+                    type="number"
+                    min="1"
+                    max="8"
+                    step="0.5"
+                    value={selectedCabinet.toekickDepth}
+                    onChange={(e) => updateCabinet(selectedCabinet.id, 'toekickDepth', parseFloat(e.target.value))}
+                    style={inputStyle}
+                    />
+                </div>
+                </>
+            )}
 
             <div style={{ ...inputGroupStyle, flexDirection: 'row', alignItems: 'center' }}>
                 <input
