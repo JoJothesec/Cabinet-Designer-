@@ -30,10 +30,6 @@
 
 ### Priority 4: Export Improvements
 - [x] **Enhanced Cut Lists** ✅
-  - Grain direction indicators
-  - Edgebanding requirements
-  - Hardware installation notes
-  - Assembly sequence numbers
  
 - [x] **Shopping List Generator** ✅
 

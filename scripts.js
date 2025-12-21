@@ -268,6 +268,14 @@ const Download = ({ size = 24, color = "currentColor" }) => (
     </svg>
 );
 
+const Upload = ({ size = 24, color = "currentColor" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+    <polyline points="17 8 12 3 7 8"></polyline>
+    <line x1="12" y1="3" x2="12" y2="15"></line>
+    </svg>
+);
+
 const Plus = ({ size = 24, color = "currentColor" }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -2017,6 +2025,48 @@ const CabinetDesigner = () => {
     }
     };
 
+    // Export project to file
+    const handleExportToFile = () => {
+        const projectData = {
+            name: projectName || 'Untitled Project',
+            cabinets: cabinets,
+            materialCosts: materialCosts,
+            laborRate: laborRate,
+            selectedUnit: selectedUnit,
+            createdDate: new Date().toISOString()
+        };
+        
+        const result = exportProjectToFile(projectData);
+        
+        if (result.success) {
+            alert(`Project exported as ${result.fileName}`);
+        } else {
+            alert(`Export failed: ${result.error}`);
+        }
+    };
+
+    // Import project from file
+    const handleImportFromFile = () => {
+        if (cabinets.length > 0) {
+            const confirmImport = confirm('Importing will replace your current project. Continue?');
+            if (!confirmImport) return;
+        }
+        
+        importProjectFromFile((success, data, errorMessage) => {
+            if (success) {
+                setCabinets(data.cabinets || []);
+                setProjectName(data.name || 'Imported Project');
+                setMaterialCosts(data.materialCosts || materialCosts);
+                setLaborRate(data.laborRate || 50);
+                setSelectedUnit(data.selectedUnit || 'inches');
+                
+                alert(`Project "${data.name}" loaded successfully!`);
+            } else {
+                alert(`Import failed: ${errorMessage}`);
+            }
+        });
+    };
+
     const savePDF = () => {
     // Get canvas screenshot
     const canvas = canvasRef.current;
@@ -2811,6 +2861,12 @@ const CabinetDesigner = () => {
             </button>
             <button onClick={handleShowSavedProjects} style={{...buttonStyle, padding: '6px 10px'}} title="View All Projects">
             <FileText size={16} />
+            </button>
+            <button onClick={handleExportToFile} style={{...buttonStyle, padding: '6px 10px', background: '#2196F3'}} title="Export to File">
+            <Download size={16} />
+            </button>
+            <button onClick={handleImportFromFile} style={{...buttonStyle, padding: '6px 10px', background: '#2196F3'}} title="Import from File">
+            <Upload size={16} />
             </button>
             <div style={{width: '1px', background: '#333', margin: '0 4px'}}></div>
             <button onClick={() => setShowCutList(true)} style={{...buttonStyle, padding: '6px 10px'}} title="View Cut List">
