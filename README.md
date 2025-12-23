@@ -1,85 +1,114 @@
 # Cabinet Designer Pro
 
-A professional-grade cabinet design application with 3D visualization, detailed cut lists, material calculations, and pricing estimates.
+A professional-grade cabinet design application with 3D visualization, detailed cut lists, material calculations, and pricing estimates. Runs entirely in the browser with no backend required.
 
 ## Features
 
 - **3D Visualization**: Interactive 3D view of your cabinet designs using Three.js
-- **Multiple Cabinet Types**: Support for various door styles (Shaker, Flat, Raised Panel, Glass Insert)
+- **Multiple Door Styles**: Shaker, Flat, Raised Panel, and Glass Insert
 - **Drawer Management**: Add and position multiple drawers with precise control
 - **Cut Lists**: Automatically generate detailed cut lists for all cabinet components
+- **Shopping Lists**: Consolidated material and hardware lists
 - **Material Calculations**: Calculate sheet materials needed and associated costs
 - **Pricing Estimates**: Built-in labor and material cost estimation
 - **Project Management**: Save and load projects using localStorage
-- **Export Functionality**: Export cut lists to CSV for use in your shop
+- **Export Options**: Export to PDF, CSV, or JSON for backup and sharing
+- **Keyboard Shortcuts**: Full keyboard support including undo/redo (Ctrl+Z/Y)
+- **Fraction Support**: Enter measurements as decimals, fractions, or mixed numbers (e.g., `36 3/8`)
 
-## Getting Started 
+## Getting Started
 
-clone this reop to work with the code.
+Clone this repo to work with the code:
+
+```bash
+git clone https://github.com/jojothesec/Cabinet-Designer-.git
+cd Cabinet-Designer-
+```
 
 ## Running the Application
 
 ### Important: Local Web Server Required
 
-Due to browser CORS (Cross-Origin Resource Sharing) policies, you **cannot** open `index.html` directly using the `file://` protocol. The browser will block loading of external JavaScript files (`scripts.js`) for security reasons.
-
-**You must run a local web server** to use this application.
+Due to browser CORS policies, you **cannot** open `index.html` directly using the `file://` protocol. You must run a local web server.
 
 ### Option 1: Python HTTP Server (Recommended)
-
-If you have Python installed (comes pre-installed on macOS and most Linux distributions):
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then open your browser to: **http://localhost:8000/index.html**
+Then open: **http://localhost:8000/site/index.html**
 
 ### Option 2: Node.js http-server
-
-If you have Node.js installed:
 
 ```bash
 npx http-server -p 8000
 ```
 
-Then open your browser to: **http://localhost:8000/index.html**
+Then open: **http://localhost:8000/site/index.html**
 
 ### Option 3: VS Code Live Server
 
-If you're using Visual Studio Code:
-
 1. Install the "Live Server" extension by Ritwick Dey
-2. Right-click on `index.html` in the file explorer
+2. Right-click on `site/index.html` in the file explorer
 3. Select "Open with Live Server"
 
 ## Project Structure
 
 ```
 Cabinet-Designer-/
-├── index.html      # Main HTML file with minimal structure
-├── styles.css      # All CSS styling
-├── scripts.js      # React application code and logic
-└── README.md       # This file
+├── site/                   # Application files (serve from here)
+│   ├── index.html          # Entry point - loads all scripts in order
+│   ├── scripts.js          # Main React application component
+│   ├── styles.css          # All CSS styling
+│   └── modules/            # Symlink to ../modules
+│
+├── modules/                # Modular JavaScript files
+│   ├── measurements.js     # Fraction/decimal conversion utilities
+│   ├── constants.js        # Standard specs, hardware options, defaults
+│   ├── cabinetClasses.js   # Cabinet, Door, Drawer class definitions
+│   ├── icons.js            # SVG icon React components
+│   ├── validation.js       # Input validation and constraints
+│   ├── projectManager.js   # localStorage save/load operations
+│   ├── historyManager.js   # Undo/redo state management
+│   ├── keyboardShortcuts.js# Keyboard bindings and handlers
+│   ├── cameraPresets.js    # 3D camera view presets
+│   ├── shoppingListGenerator.js # Material aggregation
+│   ├── printExport.js      # PDF/print generation
+│   └── fileImportExport.js # JSON file import/export
+│
+├── docs/                   # Project documentation
+│   ├── README_MODULAR.md   # Detailed module guide
+│   ├── STRUCTURE_GUIDE.md  # Architecture diagrams
+│   ├── QUICK_REFERENCE.md  # Common tasks reference
+│   ├── PRINT_EXPORT_GUIDE.md # Export feature docs
+│   └── RoadMap*.md         # Project roadmap files
+│
+└── README.md               # This file
 ```
+
+### Directory Roles
+
+- **site/**: Production-ready application files. This is what you serve to run the app.
+- **modules/**: Reusable JavaScript modules separated by concern. Each file handles a specific domain (measurements, validation, storage, etc.).
+- **docs/**: Developer documentation including architecture guides, quick references, and project roadmaps.
 
 ## Technologies Used
 
-- **React 18**: UI framework
+- **React 18**: UI framework (loaded via CDN)
 - **Three.js**: 3D rendering engine
-- **Babel Standalone**: In-browser JSX transformation (development only)
+- **Babel Standalone**: In-browser JSX transformation
+- **html2pdf.js**: PDF export functionality
 
-## Development Notes
+## Development
 
-This application uses in-browser Babel transformation for development convenience. For production deployment, you should:
+No build step required. Edit files and hard refresh your browser (Ctrl+F5 or Cmd+Shift+R).
 
-1. Pre-compile the JSX using a build tool (Webpack, Vite, or Create React App)
-2. Remove the Babel standalone dependency
-3. Serve the compiled JavaScript files
+All state changes flow through React's `useState` and automatically trigger 3D re-renders. See `docs/STRUCTURE_GUIDE.md` for architecture details.
 
 ## Browser Compatibility
 
-Modern browsers with ES6+ support required:
+Modern browsers with ES6+ and WebGL support required:
 - Chrome/Brave 90+
 - Firefox 88+
 - Safari 14+
