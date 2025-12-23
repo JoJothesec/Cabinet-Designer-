@@ -1,107 +1,122 @@
 # Cabinet Designer - Visual Structure Guide
 
-## 🎨 File Structure Visualization
+## File Structure Visualization
 
 ```
 Cabinet-Designer/
 │
-├── 🌐 ENTRY POINT
-│   └── index.html ──────────────┐
-│                                 │
-├── 🎨 STYLING                    │
-│   └── styles.css                │
-│                                 │
-├── 📜 MAIN SCRIPT                │
-│   └── scripts.js  ◄─────────────┘
-│        │
-│        ├─── Imports all modules
-│        ├─── Coordinates everything
-│        ├─── Starts the application
-│        └─── Displays the UI
+├── CLAUDE.md ──────────────────── AI assistant instructions
+├── README.md ──────────────────── Project overview
 │
-├── 📚 DOCUMENTATION
-│   ├── README_MODULAR.md ──────── Complete guide
-│   ├── QUICK_REFERENCE.md ──────── Quick lookup
-│   └── REFACTORING_SUMMARY.md ─── This refactoring
+├── docs/ ──────────────────────── Documentation
+│   ├── STRUCTURE_GUIDE.md ─────── This file
+│   ├── README_MODULAR.md ──────── Complete module guide
+│   ├── QUICK_REFERENCE.md ─────── Quick lookup
+│   ├── RoadMap.md ─────────────── Feature roadmap
+│   └── (other docs)
 │
-├── 💾 BACKUPS
-│   └── scripts.js.backup ──────── Original code
+├── devlog/ ────────────────────── Development logs
 │
-└── 📁 modules/ ──────────────────── Organized code modules
-    ├── measurements.js ─────────── Fraction ↔ Decimal
-    ├── constants.js ───────────── Standards & Options
-    ├── cabinetClasses.js ──────── Cabinet Blueprints
-    ├── icons.js ───────────────── UI Icons
-    ├── projectManager.js ──────── Save/Load
-    └── CabinetDesigner_original.js ─ Full original
+└── site/ ──────────────────────── Web application
+    │
+    ├── index.html ─────────────── Entry point
+    │       │
+    │       ├─── Loads CDN libraries
+    │       │    (React, Three.js, Babel)
+    │       │
+    │       └─── Loads local scripts
+    │
+    ├── styles.css ─────────────── All CSS styling
+    │
+    ├── scripts.js ─────────────── Main React app
+    │       │
+    │       ├─── CabinetDesigner component
+    │       ├─── Fraction parsing utilities
+    │       ├─── Wood texture generation
+    │       ├─── Storage functions
+    │       └─── Inline styles
+    │
+    └── modules/ ───────────────── Feature modules
+        ├── measurements.js ────── Fraction/decimal conversion
+        ├── constants.js ───────── Standards & specs
+        ├── cabinetClasses.js ──── Cabinet/Door/Drawer classes
+        ├── icons.js ───────────── SVG icon components
+        ├── cameraPresets.js ───── 3D camera positions
+        ├── validation.js ──────── Input validation rules
+        ├── projectManager.js ──── localStorage save/load
+        ├── historyManager.js ──── Undo/redo (50 states)
+        ├── keyboardShortcuts.js ─ Keyboard event handling
+        ├── shoppingListGenerator.js ─ Material aggregation
+        ├── printExport.js ─────── PDF/print generation
+        ├── fileImportExport.js ── JSON file download/upload
+        └── CabinetDesigner_original.js ─ Legacy backup
 ```
 
 ---
 
-## 🔄 Data Flow Diagram
+## Running the Application
+
+**A local web server is required** (browsers block `file://` for ES modules):
+
+```bash
+# Python (recommended)
+python3 -m http.server 8000
+
+# Or Node.js
+npx http-server -p 8000
+```
+
+Then open: http://localhost:8000/site/index.html
+
+---
+
+## Data Flow Diagram
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                     USER IN BROWSER                       │
-│                  (opens index.html)                       │
+│              (opens site/index.html)                      │
 └────────────────────────┬─────────────────────────────────┘
                          │
                          ↓
 ┌──────────────────────────────────────────────────────────┐
 │                    INDEX.HTML LOADS:                      │
-│  • React library                                          │
+│  • React 18 (from CDN)                                    │
 │  • Three.js (3D graphics)                                 │
-│  • Babel (JavaScript transformer)                         │
+│  • Babel (JSX transpiler)                                 │
+│  • html2pdf.js (PDF export)                               │
+│  • Module files (in dependency order)                     │
 │  • scripts.js (main application)                          │
 └────────────────────────┬─────────────────────────────────┘
                          │
                          ↓
 ┌──────────────────────────────────────────────────────────┐
-│                   SCRIPTS.JS IMPORTS:                     │
+│               SCRIPTS.JS USES MODULES:                    │
 │  ┌────────────────────────────────────────────────────┐  │
-│  │  import { parseFraction } from 'measurements.js'   │  │
-│  │  import { DOOR_SPECS } from 'constants.js'         │  │
-│  │  import { Cabinet } from 'cabinetClasses.js'       │  │
-│  │  import { Save } from 'icons.js'                   │  │
-│  │  import { saveProject } from 'projectManager.js'   │  │
+│  │  parseFraction() from measurements.js              │  │
+│  │  DOOR_SPECS from constants.js                      │  │
+│  │  Cabinet class from cabinetClasses.js              │  │
+│  │  Icon components from icons.js                     │  │
+│  │  saveProjectToStorage() from projectManager.js     │  │
+│  │  HistoryManager from historyManager.js             │  │
+│  │  generateShoppingList() from shoppingListGenerator │  │
 │  └────────────────────────────────────────────────────┘  │
 └────────────────────────┬─────────────────────────────────┘
                          │
                          ↓
 ┌──────────────────────────────────────────────────────────┐
-│              MODULES PROVIDE FUNCTIONALITY:               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │measurements.js│  │ constants.js │  │cabinetClasses│   │
-│  │              │  │              │  │    .js       │   │
-│  │• Convert     │  │• Door specs  │  │• Cabinet     │   │
-│  │  fractions   │  │• Hardware    │  │• Door        │   │
-│  │• Format      │  │• Standards   │  │• Drawer      │   │
-│  │  display     │  │              │  │  classes     │   │
-│  └──────────────┘  └──────────────┘  └──────────────┘   │
-│                                                           │
-│  ┌──────────────┐  ┌──────────────────────────────────┐ │
-│  │   icons.js   │  │     projectManager.js            │ │
-│  │              │  │                                  │ │
-│  │• Camera      │  │• Save to localStorage            │ │
-│  │• Save        │  │• Load projects                   │ │
-│  │• Plus        │  │• Delete projects                 │ │
-│  │• etc.        │  │• List all projects               │ │
-│  └──────────────┘  └──────────────────────────────────┘ │
-└────────────────────────┬─────────────────────────────────┘
-                         │
-                         ↓
-┌──────────────────────────────────────────────────────────┐
 │           APPLICATION RENDERS IN BROWSER:                 │
-│  • 3D cabinet view                                        │
+│  • 3D cabinet view (Three.js WebGL)                       │
 │  • Controls and inputs                                    │
 │  • Cut lists and pricing                                  │
 │  • Save/load interface                                    │
+│  • Shopping list & print features                         │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🎯 Module Responsibility Map
+## Module Responsibility Map
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -120,6 +135,9 @@ Cabinet-Designer/
                  ├─→ Applies default specs
                  │   (from constants.js)
                  │
+                 ├─→ Adds to undo history
+                 │   (via historyManager.js)
+                 │
                  └─→ Updates UI with icons
                      (from icons.js)
 
@@ -132,6 +150,8 @@ Cabinet-Designer/
         │   measurements.js      │
         │   parseFraction()      │◄──── Converts "1 1/2" to 1.5
         └────────┬───────────────┘
+                 │
+                 ├─→ validation.js checks constraints
                  │
                  └─→ Returns decimal to scripts.js
                      which updates cabinet dimensions
@@ -147,11 +167,47 @@ Cabinet-Designer/
         └────────┬───────────────┘       from scripts.js
                  │
                  └─→ Saves to browser localStorage
+
+┌─────────────────────────────────────────────────────┐
+│          USER ACTION: "Export to File"               │
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ↓
+        ┌────────────────────────┐
+        │   fileImportExport.js  │
+        │   exportProject()      │◄──── Creates JSON file
+        └────────┬───────────────┘       for download
+                 │
+                 └─→ Downloads .json file
+
+┌─────────────────────────────────────────────────────┐
+│          USER ACTION: "Print/PDF"                    │
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ↓
+        ┌────────────────────────┐
+        │     printExport.js     │
+        │   generatePDF()        │◄──── Uses html2pdf.js
+        └────────┬───────────────┘
+                 │
+                 └─→ Creates printable document
+
+┌─────────────────────────────────────────────────────┐
+│          USER ACTION: "Ctrl+Z" (Undo)                │
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ↓
+        ┌────────────────────────┐
+        │   historyManager.js    │
+        │   undo()               │◄──── Restores previous state
+        └────────┬───────────────┘       (up to 50 states)
+                 │
+                 └─→ Updates cabinet state
 ```
 
 ---
 
-## 📦 Module Dependencies
+## Module Dependencies
 
 ### measurements.js
 ```
@@ -162,13 +218,12 @@ Cabinet-Designer/
   • parseFraction()
   • decimalToFraction()
   • formatMeasurement()
-  
+
   ✓ No dependencies
   ✓ Pure utility functions
-  ✓ Standalone module
 ```
 
-### constants.js  
+### constants.js
 ```
 ┌─────────────────┐
 │  constants.js   │
@@ -180,10 +235,9 @@ Cabinet-Designer/
   • SLIDE_TYPES
   • PULL_TYPES
   • CONSTRUCTION_TYPES
-  
+
   ✓ No dependencies
   ✓ Data-only module
-  ✓ Easy to modify
 ```
 
 ### cabinetClasses.js
@@ -193,15 +247,25 @@ Cabinet-Designer/
 └─────────────────┘
   ↑ Imports from:
   • constants.js
-  
+
   ↓ Exports:
   • CabinetComponent class
   • Drawer class
   • Door class
   • Cabinet class
-  
-  ✓ Depends on constants
-  ✓ Provides blueprints
+```
+
+### validation.js
+```
+┌─────────────────┐
+│  validation.js  │
+└─────────────────┘
+  ↓ Exports:
+  • DIMENSION_CONSTRAINTS
+  • validateInput()
+
+  ✓ No dependencies
+  ✓ Input validation rules
 ```
 
 ### icons.js
@@ -213,10 +277,22 @@ Cabinet-Designer/
   • Camera component
   • Box component
   • Save component
-  • (all icons)
-  
-  ✓ Depends on React
+  • (all SVG icons)
+
+  ✓ Depends on React (global)
   ✓ UI components only
+```
+
+### cameraPresets.js
+```
+┌─────────────────┐
+│cameraPresets.js │
+└─────────────────┘
+  ↓ Exports:
+  • CAMERA_PRESETS
+
+  ✓ No dependencies
+  ✓ 3D camera positions
 ```
 
 ### projectManager.js
@@ -229,9 +305,71 @@ Cabinet-Designer/
   • loadProjectFromStorage()
   • getAllSavedProjects()
   • deleteProjectFromStorage()
-  
+
   ✓ Uses browser localStorage
-  ✓ No other dependencies
+```
+
+### historyManager.js
+```
+┌─────────────────┐
+│historyManager.js│
+└─────────────────┘
+  ↓ Exports:
+  • HistoryManager class
+  • undo(), redo()
+
+  ✓ Manages 50 state history
+  ✓ No external dependencies
+```
+
+### keyboardShortcuts.js
+```
+┌────────────────────┐
+│keyboardShortcuts.js│
+└────────────────────┘
+  ↓ Exports:
+  • KEYBOARD_SHORTCUTS
+  • handleKeyboardEvent()
+
+  ✓ No dependencies
+  ✓ Keyboard event handling
+```
+
+### shoppingListGenerator.js
+```
+┌────────────────────────┐
+│shoppingListGenerator.js│
+└────────────────────────┘
+  ↓ Exports:
+  • generateShoppingList()
+  • aggregateMaterials()
+
+  ✓ No dependencies
+  ✓ Material calculation logic
+```
+
+### printExport.js
+```
+┌─────────────────┐
+│  printExport.js │
+└─────────────────┘
+  ↓ Exports:
+  • generatePDF()
+  • formatForPrint()
+
+  ✓ Uses html2pdf.js (global)
+```
+
+### fileImportExport.js
+```
+┌───────────────────┐
+│fileImportExport.js│
+└───────────────────┘
+  ↓ Exports:
+  • exportProject()
+  • importProject()
+
+  ✓ JSON file download/upload
 ```
 
 ### scripts.js (Main)
@@ -239,93 +377,101 @@ Cabinet-Designer/
 ┌─────────────────┐
 │   scripts.js    │
 └─────────────────┘
-  ↑ Imports ALL modules:
-  • measurements.js
-  • constants.js
-  • cabinetClasses.js
-  • icons.js
-  • projectManager.js
-  
+  ↑ Uses ALL modules (loaded globally by index.html)
+
   ↓ Exports:
   • CabinetDesigner component
-  
+
   ✓ Coordinates everything
   ✓ Main application logic
+  ✓ ~3800 lines
 ```
 
 ---
 
-## 🔍 Finding Features: Visual Guide
+## Finding Features: Visual Guide
 
 ```
 WANT TO CHANGE SOMETHING?
          │
-         ├─ Measurements/Units? ─────→ modules/measurements.js
+         ├─ Measurements/Units? ─────→ site/modules/measurements.js
          │
-         ├─ Standard Sizes? ─────────→ modules/constants.js
+         ├─ Standard Sizes? ─────────→ site/modules/constants.js
          │   ├─ Door dimensions
          │   ├─ Drawer specs
          │   └─ Hardware options
          │
-         ├─ Cabinet Properties? ─────→ modules/cabinetClasses.js
+         ├─ Cabinet Properties? ─────→ site/modules/cabinetClasses.js
          │   ├─ Add new property
          │   ├─ Modify behavior
          │   └─ Add methods
          │
-         ├─ Button Icons? ───────────→ modules/icons.js
-         │   ├─ Modify existing
-         │   └─ Add new icon
+         ├─ Input Validation? ───────→ site/modules/validation.js
+         │   └─ DIMENSION_CONSTRAINTS
          │
-         ├─ Save/Load? ─────────────→ modules/projectManager.js
-         │   ├─ Change save format
-         │   └─ Modify storage
+         ├─ Button Icons? ───────────→ site/modules/icons.js
          │
-         └─ App Behavior? ──────────→ scripts.js
+         ├─ Camera Angles? ──────────→ site/modules/cameraPresets.js
+         │
+         ├─ Keyboard Shortcuts? ─────→ site/modules/keyboardShortcuts.js
+         │
+         ├─ Save/Load (localStorage)? → site/modules/projectManager.js
+         │
+         ├─ Undo/Redo? ──────────────→ site/modules/historyManager.js
+         │
+         ├─ Shopping List? ──────────→ site/modules/shoppingListGenerator.js
+         │
+         ├─ Print/PDF? ──────────────→ site/modules/printExport.js
+         │
+         ├─ File Export/Import? ─────→ site/modules/fileImportExport.js
+         │
+         └─ App Behavior? ───────────→ site/scripts.js
              ├─ Default cabinet settings
              ├─ Material costs
-             └─ UI logic
+             ├─ 3D rendering (createWoodTexture)
+             └─ Main UI logic
 ```
 
 ---
 
-## 📊 Code Organization Levels
+## Code Organization Levels
 
 ```
 Level 1: ENTRY
-┌──────────────┐
-│ index.html   │ ← Browser opens this
-└──────┬───────┘
+┌──────────────────┐
+│ site/index.html  │ ← Browser opens this
+└──────┬───────────┘
        │
-       └─→ Loads scripts.js
+       └─→ Loads CDN libraries, then local modules, then scripts.js
 
 Level 2: COORDINATION
-┌──────────────┐
-│ scripts.js   │ ← Imports and coordinates all modules
-└──────┬───────┘
+┌──────────────────┐
+│ site/scripts.js  │ ← Main React component, uses all modules
+└──────┬───────────┘
        │
-       └─→ Imports from modules/
+       └─→ Uses globals from modules/
 
 Level 3: MODULES (Functional Units)
-┌─────────────────────────────────────────┐
-│  measurements.js  │  constants.js       │
-│  cabinetClasses.js│  icons.js           │
-│  projectManager.js│                     │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  measurements.js  │  constants.js    │  validation.js   │
+│  cabinetClasses.js│  icons.js        │  cameraPresets.js│
+│  projectManager.js│  historyManager.js                  │
+│  keyboardShortcuts.js│  shoppingListGenerator.js        │
+│  printExport.js   │  fileImportExport.js                │
+└─────────────────────────────────────────────────────────┘
        │
        └─→ Each provides specific functionality
 
-Level 4: DATA & UTILITIES
-┌─────────────────────────────────────────┐
-│  • Functions that transform data        │
-│  • Classes that define structures       │
-│  • Constants that store standards       │
-│  • Components that display UI           │
-└─────────────────────────────────────────┘
+Level 4: EXTERNAL LIBRARIES (CDN)
+┌─────────────────────────────────────────────────────────┐
+│  • React 18          │  • Three.js                      │
+│  • Babel (JSX)       │  • html2pdf.js                   │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🎬 User Action Flow Example
+## User Action Flow Example
 
 ### Example: User creates a cabinet with a door
 
@@ -339,78 +485,73 @@ Level 4: DATA & UTILITIES
    ↓
 4. Sets default specs from constants.js
    ↓
-5. User enters door width: "23 1/2"
+5. Adds state to undo history (historyManager.js)
    ↓
-6. measurements.js: parseFraction("23 1/2")
+6. User enters door width: "23 1/2"
+   ↓
+7. measurements.js: parseFraction("23 1/2")
    Returns: 23.5
    ↓
-7. scripts.js: Updates cabinet door width to 23.5
+8. validation.js: checks against DIMENSION_CONSTRAINTS
    ↓
-8. 3D view re-renders with new dimensions
+9. scripts.js: Updates cabinet door width to 23.5
    ↓
-9. User clicks "Save"
-   ↓
-10. projectManager.js: saveProjectToStorage()
-    Saves all cabinet data to browser
+10. 3D view re-renders with new dimensions
     ↓
-11. Success! Project saved.
+11. User clicks "Save"
+    ↓
+12. projectManager.js: saveProjectToStorage()
+    Saves all cabinet data to browser localStorage
+    ↓
+13. Success! Project saved.
 ```
 
 ---
 
-## 📈 Complexity Reduction
+## Development Workflow
 
-### Before Refactoring:
 ```
-┌────────────────────────────────────────┐
-│                                        │
-│         scripts.js                     │
-│         (2,639 lines)                  │
-│                                        │
-│  • Everything mixed together           │
-│  • Hard to find features               │
-│  • Risky to modify                     │
-│  • Minimal documentation               │
-│                                        │
-└────────────────────────────────────────┘
-```
+MAKING CHANGES:
 
-### After Refactoring:
-```
-┌──────────┬──────────┬──────────┬──────────┬──────────┐
-│measure-  │constants │cabinet   │  icons   │ project  │
-│ments.js  │   .js    │Classes   │   .js    │Manager   │
-│(156 lines│(242 lines│   .js    │(191 lines│   .js    │
-│          │          │(374 lines│          │(199 lines│
-├──────────┴──────────┴──────────┴──────────┴──────────┤
-│                  scripts.js                           │
-│              (400+ lines, well-organized)             │
-├───────────────────────────────────────────────────────┤
-│  • Clear separation                                   │
-│  • Easy to find features                              │
-│  • Safe to modify                                     │
-│  • Extensively documented                             │
-└───────────────────────────────────────────────────────┘
+1. Start local server
+   python3 -m http.server 8000
+   ↓
+2. Open http://localhost:8000/site/index.html
+   ↓
+3. Use QUICK_REFERENCE.md to find the right file
+   ↓
+4. Open that file in editor
+   ↓
+5. Make your change
+   ↓
+6. Save the file
+   ↓
+7. Hard refresh browser (Ctrl+F5 / Cmd+Shift+R)
+   ↓
+8. Check browser console (F12) for errors
+   ↓
+9. If works: Done!
+   If broken: Undo change, check console errors
 ```
 
 ---
 
-## 🎯 Quick Visual Reference
+## Quick Reference
 
 ### To Change Default Cabinet Size:
 ```
-scripts.js
+site/scripts.js
    ↓
 createNewCabinet() function
    ↓
 width: 24,    ← Change this
-height: 34.5, ← Change this  
+height: 34.5, ← Change this
 depth: 24,    ← Change this
 ```
 
 ### To Add New Door Style:
 ```
-modules/constants.js
+site/modules/constants.js
    ↓
 DOOR_SPECS object
    ↓
@@ -422,81 +563,38 @@ yourStyle: {
 }
 ```
 
-### To Modify Fraction Display:
+### To Add Keyboard Shortcut:
 ```
-modules/measurements.js
+site/modules/keyboardShortcuts.js
    ↓
-decimalToFraction() function
+KEYBOARD_SHORTCUTS object
    ↓
-Modify the conversion logic
+Add new shortcut:
+'ctrl+n': { action: 'newCabinet', description: 'Create new cabinet' }
 ```
 
----
-
-## 🚀 Getting Started Path
-
+### To Change Camera Angle:
 ```
-START HERE
-   │
+site/modules/cameraPresets.js
    ↓
-1. Read REFACTORING_SUMMARY.md (you are here!)
-   │
+CAMERA_PRESETS object
    ↓
-2. Skim README_MODULAR.md
-   │
+Modify position values
+```
+
+### To Modify 3D Material Colors:
+```
+site/scripts.js
    ↓
-3. Open each module file, read the header comments
-   │
+createWoodTexture() function
    ↓
-4. Try running index.html in browser
-   │
-   ↓
-5. Make a small change (use QUICK_REFERENCE.md)
-   │
-   ↓
-6. Test your change
-   │
-   ↓
-7. Experiment more!
-   │
-   ↓
-BECOME PROFICIENT! 🎉
+Modify color values
 ```
 
 ---
 
-## 📝 Maintenance Workflow
+## See Also
 
-```
-WHEN YOU NEED TO MAKE A CHANGE:
-
-1. Identify Feature
-   ↓
-2. Use QUICK_REFERENCE.md to find the right file
-   ↓
-3. Open that file
-   ↓
-4. Read the comments around that section
-   ↓
-5. Make your change
-   ↓
-6. Save the file
-   ↓
-7. Refresh browser (Ctrl+F5)
-   ↓
-8. Test the change
-   ↓
-9. Check browser console for errors
-   ↓
-10. If works: Done! ✅
-    If broken: Undo change, try again 🔄
-```
-
----
-
-This visual guide helps you see the big picture of how everything connects. Keep this handy when navigating the codebase!
-
-📚 See also:
-- README_MODULAR.md for detailed explanations
-- QUICK_REFERENCE.md for specific how-tos
-- REFACTORING_SUMMARY.md for the complete overview
+- **README_MODULAR.md** - Detailed module explanations
+- **QUICK_REFERENCE.md** - Specific how-tos
+- **CLAUDE.md** - AI assistant instructions (root directory)
