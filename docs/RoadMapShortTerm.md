@@ -34,3 +34,5 @@
 - [x] **Shopping List Generator** ✅
 
 - [x] **Print-Friendly Formats** ✅
+
+- [ ] **Door open on left or right option**

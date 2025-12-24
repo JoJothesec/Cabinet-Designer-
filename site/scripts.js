@@ -459,11 +459,23 @@ const CabinetDesigner = () => {
 
     // create default cabinet
     const createNewCabinet = () => {
+    // Calculate X position - place new cabinet to the right of existing ones
+    let xPosition = 0;
+    if (cabinets.length > 0) {
+        const rightmostCabinet = cabinets.reduce((rightmost, cab) => {
+            const cabRight = cab.xPosition + cab.width;
+            const rightmostRight = rightmost.xPosition + rightmost.width;
+            return cabRight > rightmostRight ? cab : rightmost;
+        });
+        xPosition = rightmostCabinet.xPosition + rightmostCabinet.width;
+    }
+
     return {
         id: Date.now(),
         name: `Cabinet ${cabinets.length + 1}`,
         type: 'base',
         construction: 'frameless', // or 'faceFrame'
+        xPosition: xPosition, // X position in layout (inches)
         width: 24,
         height: 34.5,
         depth: 24,
@@ -789,11 +801,11 @@ const CabinetDesigner = () => {
     });
     objectsToRemove.forEach(obj => sceneRef.current.remove(obj));
 
-    let xOffset = 0;
+    // Use xPosition from each cabinet for layout positioning
     cabinets.forEach((cabinet) => {
+        const xOffset = cabinet.xPosition || 0; // Use cabinet's X position
         const cabinetGroup = createCabinet3D(cabinet, xOffset);
         sceneRef.current.add(cabinetGroup);
-        xOffset += cabinet.width + 2;
     });
     }, [cabinets, selectedCabinetId, selectedDrawerId, selectedDoorIndex, hiddenDoors, hiddenDrawers]);
 
@@ -1916,6 +1928,57 @@ const CabinetDesigner = () => {
     });
 
     return materialUsage;
+    };
+
+    // Sheet cut optimization - groups parts by size and calculates sheet requirements
+    const generateSheetOptimization = () => {
+        const cutList = generateCutList();
+        const sheetSize = { width: 96, height: 48 }; // 4x8 sheet in inches
+        const sheetArea = sheetSize.width * sheetSize.height; // 4608 sq in
+        
+        // Group parts by material and thickness
+        const partsByMaterial = {};
+        
+        cutList.forEach(item => {
+            if (item.material === 'hardware' || item.material === 'glass' || item.width === 0 || item.height === 0) return;
+            
+            const key = `${item.material}-${item.thickness}`;
+            if (!partsByMaterial[key]) {
+                partsByMaterial[key] = {
+                    material: item.material,
+                    thickness: item.thickness,
+                    parts: [],
+                    totalArea: 0,
+                    sheetsNeeded: 0,
+                    wastePercent: 0
+                };
+            }
+            
+            for (let i = 0; i < item.quantity; i++) {
+                const partArea = item.width * item.height;
+                partsByMaterial[key].parts.push({
+                    name: item.part,
+                    cabinet: item.cabinet,
+                    width: item.width,
+                    height: item.height,
+                    area: partArea
+                });
+                partsByMaterial[key].totalArea += partArea;
+            }
+        });
+        
+        // Calculate sheets needed for each material/thickness combination
+        Object.values(partsByMaterial).forEach(group => {
+            // Add 10% waste factor for saw kerf and edge trimming
+            const adjustedArea = group.totalArea * 1.1;
+            group.sheetsNeeded = Math.ceil(adjustedArea / sheetArea);
+            group.wastePercent = ((group.sheetsNeeded * sheetArea - group.totalArea) / (group.sheetsNeeded * sheetArea) * 100).toFixed(1);
+            
+            // Sort parts by area (largest first) for better visualization
+            group.parts.sort((a, b) => b.area - a.area);
+        });
+        
+        return partsByMaterial;
     };
 
     const saveProject = () => {
@@ -3061,7 +3124,23 @@ const CabinetDesigner = () => {
 
             {viewMode === 'cutlist' && (
                 <div style={{ padding: '24px' }}>
-                <h2 style={{ marginBottom: '16px', color: '#ff6b35' }}>Detailed Cut List</h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h2 style={{ color: '#ff6b35', margin: 0 }}>Detailed Cut List</h2>
+                    <button
+                        onClick={() => window.print()}
+                        style={{
+                            ...buttonStyle,
+                            padding: '8px 16px',
+                            background: '#2196F3',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}
+                        title="Print cut list"
+                    >
+                        🖨️ Print Cut List
+                    </button>
+                </div>
                 {cabinets.length === 0 ? (
                     <p style={{ color: '#666' }}>Add cabinets to generate cut list</p>
                 ) : (
@@ -3137,6 +3216,88 @@ const CabinetDesigner = () => {
                         Total Material Cost: ${Object.values(calculateMaterials())
                         .reduce((sum, data) => sum + data.cost, 0)
                         .toFixed(2)}
+                    </div>
+
+                    {/* Sheet Cut Optimization Section */}
+                    <div style={{ marginTop: '32px' }}>
+                        <h2 style={{ marginBottom: '16px', color: '#ff6b35' }}>📋 Sheet Cut Optimization</h2>
+                        <p style={{ color: '#aaa', fontSize: '12px', marginBottom: '16px' }}>
+                            Optimized grouping for 4' x 8' (48" x 96") sheets with 10% waste factor
+                        </p>
+                        {Object.entries(generateSheetOptimization()).map(([key, group]) => (
+                            <div key={key} style={{
+                                background: '#1a1a1a',
+                                padding: '16px',
+                                marginBottom: '16px',
+                                borderRadius: '4px',
+                                border: '1px solid #4CAF50'
+                            }}>
+                                <div style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center',
+                                    marginBottom: '12px',
+                                    paddingBottom: '12px',
+                                    borderBottom: '1px solid #333'
+                                }}>
+                                    <h3 style={{
+                                        textTransform: 'capitalize',
+                                        color: '#4CAF50',
+                                        margin: 0
+                                    }}>
+                                        {group.material} ({group.thickness}")
+                                    </h3>
+                                    <div style={{ fontSize: '14px', color: '#fff' }}>
+                                        <strong>{group.sheetsNeeded}</strong> sheets needed
+                                    </div>
+                                </div>
+                                
+                                <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '12px' }}>
+                                    <div>Total area: {(group.totalArea / 144).toFixed(1)} sq ft</div>
+                                    <div>Waste: {group.wastePercent}% (includes saw kerf & trimming)</div>
+                                    <div style={{ marginTop: '8px', color: '#fff' }}>Parts to cut: {group.parts.length}</div>
+                                </div>
+
+                                {/* Show top 10 largest parts */}
+                                <details style={{ marginTop: '12px' }}>
+                                    <summary style={{ 
+                                        cursor: 'pointer', 
+                                        color: '#4CAF50',
+                                        fontSize: '12px',
+                                        padding: '4px 0'
+                                    }}>
+                                        📦 View parts list ({group.parts.length} parts)
+                                    </summary>
+                                    <div style={{ 
+                                        marginTop: '8px',
+                                        maxHeight: '200px',
+                                        overflowY: 'auto',
+                                        fontSize: '11px'
+                                    }}>
+                                        {group.parts.slice(0, 20).map((part, i) => (
+                                            <div key={i} style={{ 
+                                                padding: '4px 0',
+                                                borderBottom: '1px solid #252525',
+                                                display: 'flex',
+                                                justifyContent: 'space-between'
+                                            }}>
+                                                <span style={{ color: '#ccc' }}>
+                                                    {part.cabinet} - {part.name}
+                                                </span>
+                                                <span style={{ color: '#aaa' }}>
+                                                    {formatMeasurement(part.width, 'fraction')} × {formatMeasurement(part.height, 'fraction')}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {group.parts.length > 20 && (
+                                            <div style={{ padding: '8px 0', color: '#666', fontStyle: 'italic' }}>
+                                                ...and {group.parts.length - 20} more parts
+                                            </div>
+                                        )}
+                                    </div>
+                                </details>
+                            </div>
+                        ))}
                     </div>
                     </div>
                 )}
@@ -3297,6 +3458,78 @@ const CabinetDesigner = () => {
                 style={inputStyle}
                 />
                 <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.depth, measurementFormat)}</div>
+            </div>
+
+            <div className="section-header">POSITIONING</div>
+
+            <div style={inputGroupStyle}>
+                <label style={labelStyle}>X Position (Layout)</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                        onClick={() => {
+                            // Move left by 1 inch
+                            const newX = Math.max(0, selectedCabinet.xPosition - 1);
+                            updateCabinet(selectedCabinet.id, 'xPosition', newX);
+                        }}
+                        style={{...buttonStyle, padding: '6px 12px'}}
+                        title="Move left 1 inch"
+                    >
+                        ◀
+                    </button>
+                    <input
+                        type="text"
+                        placeholder="0 or 36 3/4"
+                        value={decimalToFraction(selectedCabinet.xPosition || 0)}
+                        onChange={(e) => updateCabinet(selectedCabinet.id, 'xPosition', parseFraction(e.target.value))}
+                        style={{...inputStyle, flex: 1}}
+                    />
+                    <button
+                        onClick={() => {
+                            // Move right by 1 inch
+                            updateCabinet(selectedCabinet.id, 'xPosition', (selectedCabinet.xPosition || 0) + 1);
+                        }}
+                        style={{...buttonStyle, padding: '6px 12px'}}
+                        title="Move right 1 inch"
+                    >
+                        ▶
+                    </button>
+                </div>
+                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.xPosition || 0, measurementFormat)}</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                <button
+                    onClick={() => {
+                        // Snap to left edge (X = 0)
+                        updateCabinet(selectedCabinet.id, 'xPosition', 0);
+                    }}
+                    style={{...buttonStyle, flex: 1, fontSize: '11px'}}
+                    title="Snap to left edge"
+                >
+                    ⬅ Snap Left
+                </button>
+                <button
+                    onClick={() => {
+                        // Snap to adjacent cabinet (find cabinet to the left)
+                        const sortedCabinets = [...cabinets].sort((a, b) => a.xPosition - b.xPosition);
+                        const currentIndex = sortedCabinets.findIndex(c => c.id === selectedCabinet.id);
+                        
+                        if (currentIndex > 0) {
+                            const leftCabinet = sortedCabinets[currentIndex - 1];
+                            const snapPosition = leftCabinet.xPosition + leftCabinet.width;
+                            updateCabinet(selectedCabinet.id, 'xPosition', snapPosition);
+                        } else if (currentIndex < sortedCabinets.length - 1) {
+                            // If it's the leftmost, snap to the right cabinet
+                            const rightCabinet = sortedCabinets[currentIndex + 1];
+                            const snapPosition = rightCabinet.xPosition - selectedCabinet.width;
+                            updateCabinet(selectedCabinet.id, 'xPosition', Math.max(0, snapPosition));
+                        }
+                    }}
+                    style={{...buttonStyle, flex: 1, fontSize: '11px', background: '#4CAF50'}}
+                    title="Snap to adjacent cabinet"
+                >
+                    🧲 Snap Together
+                </button>
             </div>
 
             <div className="section-header">CONSTRUCTION</div>
