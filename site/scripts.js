@@ -3586,54 +3586,7 @@ const CabinetDesigner = () => {
                 <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.depth, measurementFormat)}</div>
             </div>
 
-            <div className="section-header">POSITIONING</div>
-
-            <div style={inputGroupStyle}>
-                <label style={labelStyle}>X Position (Layout)</label>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button
-                        onClick={() => {
-                            // Move left by 1 inch
-                            const newX = Math.max(0, selectedCabinet.xPosition - 1);
-                            updateCabinet(selectedCabinet.id, 'xPosition', newX);
-                        }}
-                        style={{...buttonStyle, padding: '6px 12px'}}
-                        title="Move left 1 inch"
-                    >
-                        ◀
-                    </button>
-                    <input
-                        type="text"
-                        placeholder="0 or 36 3/4"
-                        value={decimalToFraction(selectedCabinet.xPosition || 0)}
-                        onChange={(e) => updateCabinet(selectedCabinet.id, 'xPosition', parseFraction(e.target.value))}
-                        style={{...inputStyle, flex: 1}}
-                    />
-                    <button
-                        onClick={() => {
-                            // Move right by 1 inch
-                            updateCabinet(selectedCabinet.id, 'xPosition', (selectedCabinet.xPosition || 0) + 1);
-                        }}
-                        style={{...buttonStyle, padding: '6px 12px'}}
-                        title="Move right 1 inch"
-                    >
-                        ▶
-                    </button>
-                </div>
-                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>{formatMeasurement(selectedCabinet.xPosition || 0, measurementFormat)}</div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                <button
-                    onClick={() => {
-                        // Snap to left edge (X = 0)
-                        updateCabinet(selectedCabinet.id, 'xPosition', 0);
-                    }}
-                    style={{...buttonStyle, flex: 1, fontSize: '11px'}}
-                    title="Snap to left edge"
-                >
-                    ⬅ Snap Left
-                </button>
+            <div style={{ marginBottom: '16px' }}>
                 <button
                     onClick={() => {
                         // Snap to adjacent cabinet (find cabinet to the left)
@@ -3651,7 +3604,7 @@ const CabinetDesigner = () => {
                             updateCabinet(selectedCabinet.id, 'xPosition', Math.max(0, snapPosition));
                         }
                     }}
-                    style={{...buttonStyle, flex: 1, fontSize: '11px', background: '#4CAF50'}}
+                    style={{...buttonStyle, width: '100%', fontSize: '12px', background: '#4CAF50'}}
                     title="Snap to adjacent cabinet"
                 >
                     🧲 Snap Together
