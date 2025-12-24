@@ -433,6 +433,7 @@ const CabinetDesigner = () => {
     });
     const [showHistoryTimeline, setShowHistoryTimeline] = useState(false); // Show/hide history timeline
     const [validationResults, setValidationResults] = useState(null); // Store validation results for selected cabinet
+    const [isMovingCabinet, setIsMovingCabinet] = useState(false); // Track if in move mode
 
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -451,6 +452,13 @@ const CabinetDesigner = () => {
     const cameraAngle = useRef({ theta: Math.PI / 4, phi: Math.PI / 6 });
     const cameraDistance = useRef(80);
     const modelRef = useRef(null); // Reference to the loaded GLB model
+    
+    // Move mode state
+    const isMoveMode = useRef(false);
+    const movingCabinetId = useRef(null);
+    const cameraTarget = useRef(new THREE.Vector3(0, 15, 0));
+    const clickStartTime = useRef(0);
+    const DOUBLE_CLICK_THRESHOLD = 300; // ms
 
     // Save measurement format preference to localStorage
     useEffect(() => {
@@ -476,6 +484,7 @@ const CabinetDesigner = () => {
         type: 'base',
         construction: 'frameless', // or 'faceFrame'
         xPosition: xPosition, // X position in layout (inches)
+        zPosition: 0, // Z position (depth/forward-back)
         width: 24,
         height: 34.5,
         depth: 24,
@@ -582,7 +591,12 @@ const CabinetDesigner = () => {
     };
     
     const handleKeyDown = (e) => {
-        if (e.key === 'Delete') {
+        if (e.key === 'Escape') {
+            // Exit move mode if active
+            if (isMoveMode.current) {
+                exitMoveMode();
+            }
+        } else if (e.key === 'Delete') {
         if (selectedDrawerId && selectedCabinetId) {
             deleteDrawer(selectedCabinetId, selectedDrawerId);
             setSelectedDrawerId(null);
@@ -669,27 +683,37 @@ const CabinetDesigner = () => {
         );
     };
 
-    const updateCameraPosition = (camera) => {
+    const updateCameraPosition = (camera, enforceTarget = false) => {
     const theta = cameraAngle.current.theta;
     const phi = cameraAngle.current.phi;
     const distance = cameraDistance.current;
+    
+    // Get the target point (cabinet center if in move mode, otherwise scene center)
+    const target = cameraTarget.current;
 
-    camera.position.x = distance * Math.sin(theta) * Math.cos(phi);
-    camera.position.y = distance * Math.sin(phi);
-    camera.position.z = distance * Math.cos(theta) * Math.cos(phi);
-    camera.lookAt(0, 15, 0);
+    // Calculate camera position relative to target
+    camera.position.x = target.x + distance * Math.sin(theta) * Math.cos(phi);
+    camera.position.y = target.y + distance * Math.sin(phi);
+    camera.position.z = target.z + distance * Math.cos(theta) * Math.cos(phi);
+    
+    // Apply boundary constraints to keep view within design area
+    const maxBoundary = 150; // Maximum distance from origin
+    const minY = 5; // Minimum camera height
+    const maxY = 100; // Maximum camera height
+    
+    // Clamp camera position to boundaries
+    camera.position.x = Math.max(-maxBoundary, Math.min(maxBoundary, camera.position.x));
+    camera.position.y = Math.max(minY, Math.min(maxY, camera.position.y));
+    camera.position.z = Math.max(-maxBoundary, Math.min(maxBoundary, camera.position.z));
+    
+    camera.lookAt(target);
     };
 
     // mouse controls
     const handleMouseDown = (e) => {
-    isDragging.current = true;
-    previousMousePosition.current = { x: e.clientX, y: e.clientY };
-    };
-    
-    const handleDoubleClick = (e) => {
     if (!canvasRef.current) return;
     
-    // Perform raycasting to select cabinet, door, or drawer on double-click
+    // Check if we're clicking on a cabinet
     const rect = canvasRef.current.getBoundingClientRect();
     mouse.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -697,44 +721,88 @@ const CabinetDesigner = () => {
     raycaster.current.setFromCamera(mouse.current, cameraRef.current);
     const intersects = raycaster.current.intersectObjects(sceneRef.current.children, true);
     
-    // Check intersected objects and their parents for selection data
+    let clickedOnCabinet = false;
+    
+    // Check if we clicked on a cabinet
     for (let intersection of intersects) {
         let obj = intersection.object;
-        let found = false;
         
-        // Traverse up the object hierarchy looking for userData
-        while (obj && !found) {
-            // Check if this is a drawer
-            if (obj.userData.drawerId) {
-                setSelectedCabinetId(obj.userData.cabinetId);
-                setSelectedDrawerId(obj.userData.drawerId);
-                setSelectedDoorIndex(null);
-                found = true;
-                break;
-            }
-            // Check if this is a door
-            if (obj.userData.isDoor) {
-                setSelectedCabinetId(obj.userData.cabinetId);
-                setSelectedDrawerId(null);
-                setSelectedDoorIndex(obj.userData.doorIndex);
-                found = true;
-                break;
-            }
-            // Check if this is a cabinet
-            if (obj.userData.cabinetId && !obj.userData.isDoor && !obj.userData.drawerId) {
-                setSelectedCabinetId(obj.userData.cabinetId);
-                setSelectedDrawerId(null);
-                setSelectedDoorIndex(null);
-                found = true;
+        while (obj) {
+            if (obj.userData.cabinetId) {
+                clickedOnCabinet = true;
+                const cabinetId = obj.userData.cabinetId;
+                
+                // Handle double-click detection (enter move mode)
+                const now = Date.now();
+                const timeSinceLastClick = now - clickStartTime.current;
+                
+                if (timeSinceLastClick < DOUBLE_CLICK_THRESHOLD && selectedCabinetId === cabinetId) {
+                    // Double-click detected - enter move mode
+                    enterMoveMode(cabinetId);
+                    return;
+                } else {
+                    // Single click - just select
+                    if (!isMoveMode.current) {
+                        setSelectedCabinetId(cabinetId);
+                        setSelectedDrawerId(null);
+                        setSelectedDoorIndex(null);
+                    }
+                }
+                
+                clickStartTime.current = now;
                 break;
             }
             obj = obj.parent;
         }
         
-        if (found) {
-            return;
-        }
+        if (clickedOnCabinet) break;
     }
+    
+    // If clicked on empty space
+    if (!clickedOnCabinet) {
+        if (isMoveMode.current) {
+            // Exit move mode
+            exitMoveMode();
+        } else {
+            // Start camera rotation
+            isDragging.current = true;
+            previousMousePosition.current = { x: e.clientX, y: e.clientY };
+        }
+    } else if (isMoveMode.current) {
+        // In move mode, clicking on a cabinet starts dragging it
+        isDragging.current = true;
+        previousMousePosition.current = { x: e.clientX, y: e.clientY };
+    }
+    };
+    
+    const enterMoveMode = (cabinetId) => {
+    isMoveMode.current = true;
+    movingCabinetId.current = cabinetId;
+    setIsMovingCabinet(true);
+    
+    // Update camera target to cabinet position
+    const cabinet = cabinets.find(c => c.id === cabinetId);
+    if (cabinet) {
+        cameraTarget.current.set(
+            cabinet.xPosition + cabinet.width / 2,
+            cabinet.height / 2,
+            cabinet.zPosition || 0
+        );
+        updateCameraPosition(cameraRef.current);
+    }
+    };
+    
+    const exitMoveMode = () => {
+    isMoveMode.current = false;
+    movingCabinetId.current = null;
+    setIsMovingCabinet(false);
+    // Reset camera target to scene center
+    cameraTarget.current.set(0, 15, 0);
+    updateCameraPosition(cameraRef.current);
+    };
+    
+    const handleDoubleClick = (e) => {
+    // This is now handled in handleMouseDown for better control
     };
 
     const handleMouseMove = (e) => {
@@ -743,15 +811,48 @@ const CabinetDesigner = () => {
     const deltaX = e.clientX - previousMousePosition.current.x;
     const deltaY = e.clientY - previousMousePosition.current.y;
 
-    cameraAngle.current.theta -= deltaX * 0.01;
-    cameraAngle.current.phi += deltaY * 0.01;
-    cameraAngle.current.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, cameraAngle.current.phi));
+    if (isMoveMode.current && movingCabinetId.current) {
+        // Move the cabinet in move mode - supports all 8 directions
+        const cabinet = cabinets.find(c => c.id === movingCabinetId.current);
+        if (cabinet) {
+            // Calculate movement in world space - faster movement
+            const movementScale = 0.15; // Increased from 0.1 for faster movement
+            const newXPosition = cabinet.xPosition + deltaX * movementScale;
+            const newZPosition = (cabinet.zPosition || 0) - deltaY * movementScale; // Inverted Y for intuitive forward/back
+            
+            // Update cabinet positions for both axes
+            const updatedCabinet = { 
+                ...cabinet, 
+                xPosition: newXPosition,
+                zPosition: newZPosition
+            };
+            setCabinets(cabinets.map(c => 
+                c.id === movingCabinetId.current ? updatedCabinet : c
+            ));
+            
+            // Update camera target to follow cabinet smoothly
+            cameraTarget.current.set(
+                newXPosition + cabinet.width / 2,
+                cabinet.height / 2,
+                newZPosition
+            );
+            
+            updateCameraPosition(cameraRef.current);
+        }
+    } else {
+        // Regular camera rotation - 1 degree per pixel
+        const degreesPerPixel = Math.PI / 180; // Convert 1 degree to radians
+        cameraAngle.current.theta -= deltaX * degreesPerPixel;
+        cameraAngle.current.phi += deltaY * degreesPerPixel;
+        cameraAngle.current.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, cameraAngle.current.phi));
 
-    updateCameraPosition(cameraRef.current);
+        updateCameraPosition(cameraRef.current);
+        
+        // Clear active preset when user manually moves camera
+        setActiveCameraPreset(null);
+    }
+
     previousMousePosition.current = { x: e.clientX, y: e.clientY };
-    
-    // Clear active preset when user manually moves camera
-    setActiveCameraPreset(null);
     };
 
     const handleMouseUp = () => {
@@ -801,10 +902,11 @@ const CabinetDesigner = () => {
     });
     objectsToRemove.forEach(obj => sceneRef.current.remove(obj));
 
-    // Use xPosition from each cabinet for layout positioning
+    // Use xPosition and zPosition from each cabinet for layout positioning
     cabinets.forEach((cabinet) => {
         const xOffset = cabinet.xPosition || 0; // Use cabinet's X position
-        const cabinetGroup = createCabinet3D(cabinet, xOffset);
+        const zOffset = cabinet.zPosition || 0; // Use cabinet's Z position
+        const cabinetGroup = createCabinet3D(cabinet, xOffset, zOffset);
         sceneRef.current.add(cabinetGroup);
     });
     }, [cabinets, selectedCabinetId, selectedDrawerId, selectedDoorIndex, hiddenDoors, hiddenDrawers]);
@@ -975,7 +1077,7 @@ const CabinetDesigner = () => {
     };
 
     // build 3D cabinet
-    const createCabinet3D = (cabinet, xOffset) => {
+    const createCabinet3D = (cabinet, xOffset, zOffset = 0) => {
     const group = new THREE.Group();
     group.userData.isCabinet = true;
     group.userData.cabinetId = cabinet.id;
@@ -997,12 +1099,12 @@ const CabinetDesigner = () => {
     // cabinet box
     const sideGeo = new THREE.BoxGeometry(thickness, height, depth);
     const leftSide = new THREE.Mesh(sideGeo, material);
-    leftSide.position.set(xOffset, height / 2, 0);
+    leftSide.position.set(xOffset, height / 2, zOffset);
     leftSide.castShadow = true;
     group.add(leftSide);
 
     const rightSide = new THREE.Mesh(sideGeo, material);
-    rightSide.position.set(xOffset + width - thickness, height / 2, 0);
+    rightSide.position.set(xOffset + width - thickness, height / 2, zOffset);
     rightSide.castShadow = true;
     group.add(rightSide);
 
@@ -1012,28 +1114,28 @@ const CabinetDesigner = () => {
     // Front stretcher (runs left to right)
     const frontStretcher_geo = new THREE.BoxGeometry(width - thickness * 2, stretcher_thickness, thickness * 3);
     const frontStretcher = new THREE.Mesh(frontStretcher_geo, material);
-    frontStretcher.position.set(xOffset + width / 2, height - stretcher_thickness / 2, depth / 2 - thickness * 1.5);
+    frontStretcher.position.set(xOffset + width / 2, height - stretcher_thickness / 2, zOffset + depth / 2 - thickness * 1.5);
     frontStretcher.castShadow = true;
     group.add(frontStretcher);
 
     // Back stretcher (runs left to right)
     const backStretcher_geo = new THREE.BoxGeometry(width - thickness * 2, stretcher_thickness, thickness * 3);
     const backStretcher = new THREE.Mesh(backStretcher_geo, material);
-    backStretcher.position.set(xOffset + width / 2, height - stretcher_thickness / 2, -depth / 2 + thickness * 1.5);
+    backStretcher.position.set(xOffset + width / 2, height - stretcher_thickness / 2, zOffset - depth / 2 + thickness * 1.5);
     backStretcher.castShadow = true;
     group.add(backStretcher);
 
     const topGeo = new THREE.BoxGeometry(width, thickness, depth);
     const bottom = new THREE.Mesh(topGeo, material);
     const bottomY = cabinet.toekick ? cabinet.toekickHeight : 0;
-    bottom.position.set(xOffset + width / 2, bottomY + thickness / 2, 0);
+    bottom.position.set(xOffset + width / 2, bottomY + thickness / 2, zOffset);
     bottom.castShadow = true;
     group.add(bottom);
 
     if (cabinet.backPanel) {
         const backGeo = new THREE.BoxGeometry(width - thickness * 2, height, 0.25);
         const back = new THREE.Mesh(backGeo, material);
-        back.position.set(xOffset + width / 2, height / 2, -depth / 2 + 0.125);
+        back.position.set(xOffset + width / 2, height / 2, zOffset - depth / 2 + 0.125);
         group.add(back);
     }
 
@@ -1045,7 +1147,7 @@ const CabinetDesigner = () => {
         // top rail
         const topRailGeo = new THREE.BoxGeometry(width - thickness * 2, frameWidth, frameThickness);
         const topRail = new THREE.Mesh(topRailGeo, material);
-        topRail.position.set(xOffset + width / 2, height - frameWidth / 2, depth / 2 - frameThickness / 2);
+        topRail.position.set(xOffset + width / 2, height - frameWidth / 2, zOffset + depth / 2 - frameThickness / 2);
         topRail.castShadow = true;
         group.add(topRail);
 
@@ -1058,7 +1160,7 @@ const CabinetDesigner = () => {
             metalness: 0.0
         });
         const bottomRail = new THREE.Mesh(bottomRailGeo, bottomRailMaterial);
-        bottomRail.position.set(xOffset + width / 2, bottomY + frameWidth / 2, depth / 2 - frameThickness / 2);
+        bottomRail.position.set(xOffset + width / 2, bottomY + frameWidth / 2, zOffset + depth / 2 - frameThickness / 2);
         bottomRail.castShadow = true;
         bottomRail.receiveShadow = true;
         group.add(bottomRail);
@@ -1066,14 +1168,14 @@ const CabinetDesigner = () => {
         // left stile
         const leftStileGeo = new THREE.BoxGeometry(frameWidth, height - frameWidth * 2, frameThickness);
         const leftStile = new THREE.Mesh(leftStileGeo, material);
-        leftStile.position.set(xOffset + thickness + frameWidth / 2, height / 2, depth / 2 - frameThickness / 2);
+        leftStile.position.set(xOffset + thickness + frameWidth / 2, height / 2, zOffset + depth / 2 - frameThickness / 2);
         leftStile.castShadow = true;
         group.add(leftStile);
 
         // right stile
         const rightStileGeo = new THREE.BoxGeometry(frameWidth, height - frameWidth * 2, frameThickness);
         const rightStile = new THREE.Mesh(rightStileGeo, material);
-        rightStile.position.set(xOffset + width - thickness - frameWidth / 2, height / 2, depth / 2 - frameThickness / 2);
+        rightStile.position.set(xOffset + width - thickness - frameWidth / 2, height / 2, zOffset + depth / 2 - frameThickness / 2);
         rightStile.castShadow = true;
         group.add(rightStile);
     }
@@ -1083,7 +1185,7 @@ const CabinetDesigner = () => {
     for (let i = 0; i < cabinet.shelves; i++) {
         const shelfY = height / (cabinet.shelves + 1) * (i + 1);
         const shelf = new THREE.Mesh(shelfGeo, material);
-        shelf.position.set(xOffset + width / 2, shelfY, 0);
+        shelf.position.set(xOffset + width / 2, shelfY, zOffset);
         group.add(shelf);
     }
 
@@ -1100,7 +1202,7 @@ const CabinetDesigner = () => {
         const frontPos = new THREE.Vector3(
             xOffset + width / 2,
             drawerY,
-            depth / 2 + 0.375
+            zOffset + depth / 2 + 0.375
         );
 
         const drawerFront = createDoorFront(
@@ -1120,7 +1222,7 @@ const CabinetDesigner = () => {
         const boxPos = new THREE.Vector3(
             xOffset + width / 2,
             drawerY,
-            0
+            zOffset
         );
         const drawerBox = createDrawerBox(width - 2, depth, drawer.height, boxPos, selectedDrawerId === drawer.id);
         drawerBox.userData.cabinetId = cabinet.id;
@@ -1146,7 +1248,7 @@ const CabinetDesigner = () => {
         if (hiddenDoors.has(doorKey)) continue;
         
         const doorX = xOffset + (doorWidth + 1) * i + doorWidth / 2 + (width - (doorWidth + 1) * cabinet.doors + 1) / 2;
-        const doorPos = new THREE.Vector3(doorX, doorY, depth / 2 + 0.375);
+        const doorPos = new THREE.Vector3(doorX, doorY, zOffset + depth / 2 + 0.375);
 
         const door = createDoorFront(
             doorWidth,
@@ -1174,7 +1276,7 @@ const CabinetDesigner = () => {
             metalness: 0.1
         });
         const toekick = new THREE.Mesh(toekickGeo, toekickMaterial);
-        toekick.position.set(xOffset + width / 2, cabinet.toekickHeight / 2, depth / 2 - toekickDepth / 2);
+        toekick.position.set(xOffset + width / 2, cabinet.toekickHeight / 2, zOffset + depth / 2 - toekickDepth / 2);
         toekick.castShadow = true;
         toekick.receiveShadow = true;
         group.add(toekick);
@@ -1185,7 +1287,7 @@ const CabinetDesigner = () => {
         const counterGeo = new THREE.BoxGeometry(width + 1, cabinet.countertopThickness, depth + 1);
         const counterMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.2 });
         const counter = new THREE.Mesh(counterGeo, counterMat);
-        counter.position.set(xOffset + width / 2, height + cabinet.countertopThickness / 2, 0);
+        counter.position.set(xOffset + width / 2, height + cabinet.countertopThickness / 2, zOffset);
         counter.castShadow = true;
         group.add(counter);
     }
@@ -1195,7 +1297,7 @@ const CabinetDesigner = () => {
         const crownGeo = new THREE.BoxGeometry(width, cabinet.crownHeight, 2);
         const crownMat = new THREE.MeshStandardMaterial({ color: 0xCCBBAA });
         const crown = new THREE.Mesh(crownGeo, crownMat);
-        crown.position.set(xOffset + width / 2, height + cabinet.crownHeight / 2, depth / 2 - 1);
+        crown.position.set(xOffset + width / 2, height + cabinet.crownHeight / 2, zOffset + depth / 2 - 1);
         group.add(crown);
     }
 
@@ -3120,6 +3222,30 @@ const CabinetDesigner = () => {
                 onDoubleClick={handleDoubleClick}
                 style={{ width: '100%', height: '100%', display: 'block' }}
                 />
+                
+                {/* Move Mode Indicator */}
+                {isMovingCabinet && (
+                <div style={{
+                    position: 'absolute',
+                    top: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(255, 107, 53, 0.95)',
+                    color: '#fff',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    pointerEvents: 'none',
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                }}>
+                    🎯 Move Mode: Drag to move cabinet | Click elsewhere or press ESC to exit
+                </div>
+                )}
             </div>
 
             {viewMode === 'cutlist' && (
