@@ -434,6 +434,9 @@ const CabinetDesigner = () => {
     const [showHistoryTimeline, setShowHistoryTimeline] = useState(false); // Show/hide history timeline
     const [validationResults, setValidationResults] = useState(null); // Store validation results for selected cabinet
     const [isMovingCabinet, setIsMovingCabinet] = useState(false); // Track if in move mode
+    const [isAlignMode, setIsAlignMode] = useState(false); // Track if in alignment selection mode
+    const [selectedCabinetsForAlign, setSelectedCabinetsForAlign] = useState([]); // Cabinets selected for alignment
+    const [cabinetGroups, setCabinetGroups] = useState([]); // Groups of aligned cabinets [{id, cabinetIds: []}]
     
     // Sidebar resize state
     const [leftSidebarWidth, setLeftSidebarWidth] = useState(280);
@@ -468,6 +471,7 @@ const CabinetDesigner = () => {
     // Move mode state
     const isMoveMode = useRef(false);
     const movingCabinetId = useRef(null);
+    const movingGroupId = useRef(null); // Track if moving a group
     const cameraTarget = useRef(new THREE.Vector3(0, 15, 0));
     const clickStartTime = useRef(0);
     const DOUBLE_CLICK_THRESHOLD = 300; // ms
@@ -476,6 +480,63 @@ const CabinetDesigner = () => {
     useEffect(() => {
         localStorage.setItem('measurementFormat', measurementFormat);
     }, [measurementFormat]);
+
+    // Align selected cabinets side by side
+    const alignCabinets = () => {
+        if (selectedCabinetsForAlign.length < 2) {
+            alert('Please select at least 2 cabinets to align');
+            return;
+        }
+
+        // Sort by current x position
+        const sortedIds = [...selectedCabinetsForAlign].sort((a, b) => {
+            const cabA = cabinets.find(c => c.id === a);
+            const cabB = cabinets.find(c => c.id === b);
+            return cabA.xPosition - cabB.xPosition;
+        });
+
+        // Position cabinets side by side starting from leftmost position
+        let currentX = cabinets.find(c => c.id === sortedIds[0]).xPosition;
+        
+        sortedIds.forEach(id => {
+            const cabinet = cabinets.find(c => c.id === id);
+            updateCabinet(id, 'xPosition', currentX);
+            currentX += cabinet.width; // Move to next position
+        });
+
+        // Create a group for these aligned cabinets
+        const newGroup = {
+            id: Date.now(),
+            cabinetIds: sortedIds
+        };
+        setCabinetGroups([...cabinetGroups, newGroup]);
+
+        // Exit align mode
+        setIsAlignMode(false);
+        setSelectedCabinetsForAlign([]);
+    };
+
+    // Toggle cabinet selection for alignment
+    const toggleCabinetForAlign = (cabinetId) => {
+        if (selectedCabinetsForAlign.includes(cabinetId)) {
+            setSelectedCabinetsForAlign(selectedCabinetsForAlign.filter(id => id !== cabinetId));
+        } else {
+            setSelectedCabinetsForAlign([...selectedCabinetsForAlign, cabinetId]);
+        }
+    };
+
+    // Check if a cabinet is part of a group
+    const getCabinetGroup = (cabinetId) => {
+        return cabinetGroups.find(group => group.cabinetIds.includes(cabinetId));
+    };
+
+    // Select entire group
+    const selectGroup = (groupId) => {
+        const group = cabinetGroups.find(g => g.id === groupId);
+        if (group) {
+            setSelectedCabinetsForAlign(group.cabinetIds);
+        }
+    };
 
     // create default cabinet
     const createNewCabinet = () => {
@@ -748,13 +809,26 @@ const CabinetDesigner = () => {
                 clickedOnCabinet = true;
                 const cabinetId = obj.userData.cabinetId;
                 
+                // If in align mode, toggle selection
+                if (isAlignMode) {
+                    toggleCabinetForAlign(cabinetId);
+                    return;
+                }
+                
                 // Handle double-click detection (enter move mode)
                 const now = Date.now();
                 const timeSinceLastClick = now - clickStartTime.current;
                 
                 if (timeSinceLastClick < DOUBLE_CLICK_THRESHOLD && selectedCabinetId === cabinetId) {
-                    // Double-click detected - enter move mode
-                    enterMoveMode(cabinetId);
+                    // Double-click detected - check if part of a group
+                    const group = getCabinetGroup(cabinetId);
+                    if (group) {
+                        // Enter group move mode
+                        enterGroupMoveMode(group.id);
+                    } else {
+                        // Enter single cabinet move mode
+                        enterMoveMode(cabinetId);
+                    }
                     return;
                 } else {
                     // Single click - just select
@@ -779,6 +853,9 @@ const CabinetDesigner = () => {
         if (isMoveMode.current) {
             // Exit move mode
             exitMoveMode();
+        } else if (isAlignMode) {
+            // Don't start camera rotation in align mode
+            return;
         } else {
             // Start camera rotation
             isDragging.current = true;
@@ -794,6 +871,7 @@ const CabinetDesigner = () => {
     const enterMoveMode = (cabinetId) => {
     isMoveMode.current = true;
     movingCabinetId.current = cabinetId;
+    movingGroupId.current = null;
     setIsMovingCabinet(true);
     
     // Update camera target to cabinet position
@@ -808,9 +886,30 @@ const CabinetDesigner = () => {
     }
     };
     
+    const enterGroupMoveMode = (groupId) => {
+    isMoveMode.current = true;
+    movingGroupId.current = groupId;
+    movingCabinetId.current = null;
+    setIsMovingCabinet(true);
+    
+    // Update camera target to group center
+    const group = cabinetGroups.find(g => g.id === groupId);
+    if (group) {
+        const groupCabinets = cabinets.filter(c => group.cabinetIds.includes(c.id));
+        if (groupCabinets.length > 0) {
+            const minX = Math.min(...groupCabinets.map(c => c.xPosition));
+            const maxX = Math.max(...groupCabinets.map(c => c.xPosition + c.width));
+            const centerX = (minX + maxX) / 2;
+            cameraTarget.current.set(centerX, 15, 0);
+            updateCameraPosition(cameraRef.current);
+        }
+    }
+    };
+    
     const exitMoveMode = () => {
     isMoveMode.current = false;
     movingCabinetId.current = null;
+    movingGroupId.current = null;
     setIsMovingCabinet(false);
     // Reset camera target to scene center
     cameraTarget.current.set(0, 15, 0);
@@ -845,33 +944,62 @@ const CabinetDesigner = () => {
     const deltaX = e.clientX - previousMousePosition.current.x;
     const deltaY = e.clientY - previousMousePosition.current.y;
 
-    if (isMoveMode.current && movingCabinetId.current) {
-        // Move the cabinet in move mode - supports all 8 directions
-        const cabinet = cabinets.find(c => c.id === movingCabinetId.current);
-        if (cabinet) {
-            // Calculate movement in world space - faster movement
-            const movementScale = 0.15; // Increased from 0.1 for faster movement
-            const newXPosition = cabinet.xPosition + deltaX * movementScale;
-            const newZPosition = (cabinet.zPosition || 0) - deltaY * movementScale; // Inverted Y for intuitive forward/back
-            
-            // Update cabinet positions for both axes
-            const updatedCabinet = { 
-                ...cabinet, 
-                xPosition: newXPosition,
-                zPosition: newZPosition
-            };
-            setCabinets(cabinets.map(c => 
-                c.id === movingCabinetId.current ? updatedCabinet : c
-            ));
-            
-            // Update camera target to follow cabinet smoothly
-            cameraTarget.current.set(
-                newXPosition + cabinet.width / 2,
-                cabinet.height / 2,
-                newZPosition
-            );
-            
-            updateCameraPosition(cameraRef.current);
+    if (isMoveMode.current && (movingCabinetId.current || movingGroupId.current)) {
+        // Move cabinet or group in XZ plane (horizontal plane)
+        
+        if (movingGroupId.current) {
+            // Move entire group
+            const group = cabinetGroups.find(g => g.id === movingGroupId.current);
+            if (group) {
+                const movementScale = 0.15;
+                const deltaXPos = deltaX * movementScale;
+                const deltaZPos = -deltaY * movementScale;
+                
+                // Update all cabinets in the group
+                setCabinets(cabinets.map(cabinet => {
+                    if (group.cabinetIds.includes(cabinet.id)) {
+                        return {
+                            ...cabinet,
+                            xPosition: cabinet.xPosition + deltaXPos,
+                            zPosition: (cabinet.zPosition || 0) + deltaZPos
+                        };
+                    }
+                    return cabinet;
+                }));
+                
+                // Update camera target
+                cameraTarget.current.x += deltaXPos;
+                cameraTarget.current.z += deltaZPos;
+                updateCameraPosition(cameraRef.current);
+            }
+        } else {
+            // Move single cabinet
+            const cabinet = cabinets.find(c => c.id === movingCabinetId.current);
+            if (cabinet) {
+                // Calculate movement in world space - faster movement
+                const movementScale = 0.15; // Increased from 0.1 for faster movement
+                const newXPosition = cabinet.xPosition + deltaX * movementScale;
+                const newZPosition = (cabinet.zPosition || 0) - deltaY * movementScale; // Inverted Y for intuitive forward/back
+                
+                // Update cabinet positions for both axes
+                const updatedCabinet = { 
+                    ...cabinet, 
+                    xPosition: newXPosition,
+                    zPosition: newZPosition
+                };
+                setCabinets(cabinets.map(c => 
+                    c.id === movingCabinetId.current ? updatedCabinet : c
+                ));
+                
+                // Update camera target to follow cabinet smoothly
+                cameraTarget.current.set(
+                    newXPosition + cabinet.width / 2,
+                    cabinet.height / 2,
+                    newZPosition
+                );
+                
+                updateCameraPosition(cameraRef.current);
+            }
         }
     } else {
         // Regular camera rotation - 1 degree per pixel
@@ -987,7 +1115,7 @@ const CabinetDesigner = () => {
         const cabinetGroup = createCabinet3D(cabinet, xOffset, zOffset);
         sceneRef.current.add(cabinetGroup);
     });
-    }, [cabinets, selectedCabinetId, selectedDrawerId, selectedDoorIndex, hiddenDoors, hiddenDrawers]);
+    }, [cabinets, selectedCabinetId, selectedDrawerId, selectedDoorIndex, hiddenDoors, hiddenDrawers, isAlignMode, selectedCabinetsForAlign]);
 
     // create door/drawer front with details
     const createDoorFront = (width, height, style, material, position, xOffset, isHighlighted = false) => {
@@ -1162,6 +1290,21 @@ const CabinetDesigner = () => {
 
     const { width, height, depth, thickness } = cabinet;
     const isSelected = cabinet.id === selectedCabinetId;
+    const isSelectedForAlign = selectedCabinetsForAlign.includes(cabinet.id);
+
+    // Add visual feedback for align mode selection
+    if (isSelectedForAlign && isAlignMode) {
+        const outlineGeo = new THREE.BoxGeometry(width + 1, height + 1, depth + 1);
+        const outlineMat = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.3,
+            wireframe: true
+        });
+        const outline = new THREE.Mesh(outlineGeo, outlineMat);
+        outline.position.set(xOffset + width / 2, height / 2, zOffset);
+        group.add(outline);
+    }
 
     const cabinetColorHex = isSelected ? 0xff8855 : new THREE.Color(cabinet.color).getHex();
     if (!woodTextureCache.current[cabinetColorHex]) {
@@ -3219,25 +3362,39 @@ const CabinetDesigner = () => {
                 No cabinets yet.<br/>Click "Add" to start.
                 </div>
             ) : (
-                cabinets.map(cabinet => (
+                cabinets.map(cabinet => {
+                const cabinetGroup = getCabinetGroup(cabinet.id);
+                const isInGroup = !!cabinetGroup;
+                const isSelectedForAlign = selectedCabinetsForAlign.includes(cabinet.id);
+                
+                return (
                 <div
                     key={cabinet.id}
-                    onClick={() => setSelectedCabinetId(cabinet.id)}
+                    onClick={() => {
+                        if (isAlignMode) {
+                            toggleCabinetForAlign(cabinet.id);
+                        } else {
+                            setSelectedCabinetId(cabinet.id);
+                        }
+                    }}
                     style={{
                     padding: '12px',
                     margin: '4px 0',
-                    background: cabinet.id === selectedCabinetId ? '#ff6b35' : '#252525',
+                    background: cabinet.id === selectedCabinetId ? '#ff6b35' : (isSelectedForAlign && isAlignMode ? '#2196F3' : '#252525'),
                     borderRadius: '4px',
                     cursor: 'pointer',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    border: isInGroup ? '2px solid #4CAF50' : 'none'
                     }}
                 >
                     <div>
-                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {cabinet.name}
+                        {isInGroup && <span style={{ fontSize: '10px', background: '#4CAF50', padding: '2px 6px', borderRadius: '3px' }}>GROUP</span>}
+                        {isSelectedForAlign && isAlignMode && <span style={{ fontSize: '10px', background: '#2196F3', padding: '2px 6px', borderRadius: '3px' }}>✓</span>}
                     </div>
                     <div style={{ fontSize: '12px', opacity: 0.8 }}>
                         {cabinet.width}" × {cabinet.height}" × {cabinet.depth}"
@@ -3259,7 +3416,8 @@ const CabinetDesigner = () => {
                     <Trash2 size={16} />
                     </button>
                 </div>
-                ))
+                );
+                })
             )}
             </div>
             
@@ -3373,6 +3531,30 @@ const CabinetDesigner = () => {
                     gap: '8px'
                 }}>
                     🎯 Move Mode: Drag to move cabinet | Click elsewhere or press ESC to exit
+                </div>
+                )}
+                
+                {/* Align Mode Indicator */}
+                {isAlignMode && (
+                <div style={{
+                    position: 'absolute',
+                    top: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(33, 150, 243, 0.95)',
+                    color: '#fff',
+                    padding: '12px 24px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    pointerEvents: 'none',
+                    zIndex: 1000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                }}>
+                    ⚡ Align Mode: Click cabinets to select ({selectedCabinetsForAlign.length} selected) | Click OK in sidebar when ready
                 </div>
                 )}
             </div>
@@ -3743,11 +3925,49 @@ const CabinetDesigner = () => {
                             updateCabinet(selectedCabinet.id, 'xPosition', Math.max(0, snapPosition));
                         }
                     }}
-                    style={{...buttonStyle, width: '100%', fontSize: '12px', background: '#4CAF50'}}
+                    style={{...buttonStyle, width: '100%', fontSize: '12px', background: '#4CAF50', marginBottom: '8px'}}
                     title="Snap to adjacent cabinet"
                 >
                     🧲 Snap Together
                 </button>
+                
+                {!isAlignMode ? (
+                    <button
+                        onClick={() => {
+                            setIsAlignMode(true);
+                            setSelectedCabinetsForAlign([selectedCabinet.id]);
+                        }}
+                        style={{...buttonStyle, width: '100%', fontSize: '12px', background: '#2196F3'}}
+                        title="Select multiple cabinets to align side by side"
+                    >
+                        ⚡ Align Cabinets
+                    </button>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ fontSize: '12px', color: '#88ccff', textAlign: 'center', padding: '8px', background: '#1a2a3a', borderRadius: '4px' }}>
+                            Click cabinets to select ({selectedCabinetsForAlign.length} selected)
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                onClick={alignCabinets}
+                                style={{...buttonStyle, flex: 1, fontSize: '12px', background: '#4CAF50'}}
+                                title="Align selected cabinets side by side"
+                            >
+                                ✓ OK
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsAlignMode(false);
+                                    setSelectedCabinetsForAlign([]);
+                                }}
+                                style={{...buttonStyle, flex: 1, fontSize: '12px', background: '#f44336'}}
+                                title="Cancel alignment"
+                            >
+                                ✕ Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="section-header">CONSTRUCTION</div>
