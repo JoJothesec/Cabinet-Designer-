@@ -466,3 +466,15 @@ tr:hover {
         font-size: 9px;
     }
 }
+
+/* ========== SIDEBAR ANIMATION STYLES ========== */
+
+/* Smooth transition for sidebar width changes */
+.sidebar-transition {
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Optional: Add transition to the container for smoother overall animation */
+.sidebar-content-transition {
+    transition: opacity 0.3s ease;
+}

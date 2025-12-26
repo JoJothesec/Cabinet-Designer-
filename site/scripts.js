@@ -434,6 +434,18 @@ const CabinetDesigner = () => {
     const [showHistoryTimeline, setShowHistoryTimeline] = useState(false); // Show/hide history timeline
     const [validationResults, setValidationResults] = useState(null); // Store validation results for selected cabinet
     const [isMovingCabinet, setIsMovingCabinet] = useState(false); // Track if in move mode
+    
+    // Sidebar resize state
+    const [leftSidebarWidth, setLeftSidebarWidth] = useState(280);
+    const [rightSidebarWidth, setRightSidebarWidth] = useState(420);
+    const [sidebarsCollapsed, setSidebarsCollapsed] = useState(false);
+    const [savedLeftWidth, setSavedLeftWidth] = useState(280);
+    const [savedRightWidth, setSavedRightWidth] = useState(420);
+    const isResizingLeft = useRef(false);
+    const isResizingRight = useRef(false);
+    const leftWidthRef = useRef(280);
+    const rightWidthRef = useRef(420);
+    const resizeRafId = useRef(null);
 
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -616,11 +628,15 @@ const CabinetDesigner = () => {
     
     window.addEventListener('resize', handleResize);
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
     canvasRef.current?.addEventListener('wheel', handleWheel, { passive: false });
 
     return () => {
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
         canvasRef.current?.removeEventListener('wheel', handleWheel);
         if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
@@ -806,6 +822,24 @@ const CabinetDesigner = () => {
     };
 
     const handleMouseMove = (e) => {
+    // Handle sidebar resizing first
+    if (isResizingLeft.current) {
+        e.preventDefault();
+        const newWidth = Math.max(200, Math.min(600, e.clientX));
+        setLeftSidebarWidth(newWidth);
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        return;
+    }
+    if (isResizingRight.current) {
+        e.preventDefault();
+        const newWidth = Math.max(300, Math.min(800, window.innerWidth - e.clientX));
+        setRightSidebarWidth(newWidth);
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        return;
+    }
+    
     if (!isDragging.current || !cameraRef.current) return;
 
     const deltaX = e.clientX - previousMousePosition.current.x;
@@ -857,6 +891,50 @@ const CabinetDesigner = () => {
 
     const handleMouseUp = () => {
     isDragging.current = false;
+    
+    // Sync final sidebar widths and clean up resize
+    if (isResizingLeft.current || isResizingRight.current) {
+        if (resizeRafId.current) {
+            cancelAnimationFrame(resizeRafId.current);
+            resizeRafId.current = null;
+        }
+        if (isResizingLeft.current) {
+            setLeftSidebarWidth(leftWidthRef.current);
+        }
+        if (isResizingRight.current) {
+            setRightSidebarWidth(rightWidthRef.current);
+        }
+    }
+    
+    isResizingLeft.current = false;
+    isResizingRight.current = false;
+    document.body.style.cursor = 'default';
+    document.body.style.userSelect = 'auto';
+    };
+    
+    // Sidebar resize handlers
+    const handleLeftResizeStart = () => {
+        isResizingLeft.current = true;
+    };
+    
+    const handleRightResizeStart = () => {
+        isResizingRight.current = true;
+    };
+    
+    const toggleSidebars = () => {
+        if (sidebarsCollapsed) {
+            // Expand to saved sizes
+            setLeftSidebarWidth(savedLeftWidth);
+            setRightSidebarWidth(savedRightWidth);
+            setSidebarsCollapsed(false);
+        } else {
+            // Save current sizes and collapse
+            setSavedLeftWidth(leftSidebarWidth);
+            setSavedRightWidth(rightSidebarWidth);
+            setLeftSidebarWidth(0);
+            setRightSidebarWidth(0);
+            setSidebarsCollapsed(true);
+        }
     };
 
     const handleWheel = (e) => {
@@ -3072,15 +3150,40 @@ const CabinetDesigner = () => {
         <HistoryTimelineModal />
 
         {/* main content */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+        
+        {/* Collapse/Expand Toggle Button */}
+        <button 
+            onClick={toggleSidebars}
+            style={{
+                position: 'absolute',
+                top: '10px',
+                left: '10px',
+                zIndex: 1000,
+                background: '#ff6b35',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '8px 12px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+            }}
+            title={sidebarsCollapsed ? 'Expand Sidebars' : 'Collapse Sidebars'}
+        >
+            {sidebarsCollapsed ? '☰' : '✕'}
+        </button>
+        
         {/* left sidebar */}
-        <div style={{
-            width: '280px',
+        <div className="sidebar-transition" style={{
+            width: `${leftSidebarWidth}px`,
             background: '#1a1a1a',
             borderRight: '1px solid #333',
-            display: 'flex',
+            display: leftSidebarWidth === 0 ? 'none' : 'flex',
             flexDirection: 'column',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            position: 'relative'
         }}>
             <div style={{
             padding: '16px',
@@ -3100,7 +3203,12 @@ const CabinetDesigner = () => {
             </button>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+            <div className="sidebar-content-transition" style={{ 
+                flex: 1, 
+                overflowY: 'auto', 
+                padding: '8px',
+                opacity: leftSidebarWidth < 50 ? 0 : 1
+            }}>
             {cabinets.length === 0 ? (
                 <div style={{
                 textAlign: 'center',
@@ -3154,6 +3262,27 @@ const CabinetDesigner = () => {
                 ))
             )}
             </div>
+            
+            {/* Resize handle for left sidebar */}
+            <div 
+                onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleLeftResizeStart();
+                }}
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: -4,
+                    width: '8px',
+                    height: '100%',
+                    cursor: 'col-resize',
+                    background: 'transparent',
+                    zIndex: 100,
+                    transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 107, 53, 0.5)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            />
         </div>
 
         {/* center view */}
@@ -3464,12 +3593,15 @@ const CabinetDesigner = () => {
 
             {/* right sidebar - IMPROVED DRAWER CONTROLS */}
             {selectedCabinet && (
-            <div style={{
-            width: '420px',
-            background: '#1a1a1a',
-            borderLeft: '1px solid #333',
-            overflowY: 'auto',
-            padding: '16px'
+            <div className="sidebar-transition sidebar-content-transition" style={{
+                width: `${rightSidebarWidth}px`,
+                background: '#1a1a1a',
+                borderLeft: '1px solid #333',
+                overflowY: 'auto',
+                padding: '16px',
+                position: 'relative',
+                display: rightSidebarWidth === 0 ? 'none' : 'block',
+                opacity: rightSidebarWidth < 50 ? 0 : 1
             }}>
             <h3 style={{ marginBottom: '16px', color: '#ff6b35' }}>
                 Cabinet Details
@@ -3484,6 +3616,13 @@ const CabinetDesigner = () => {
                     borderRadius: '4px',
                     border: validationResults.errors.length > 0 ? '1px solid #ff4444' : '1px solid #333'
                 }}>
+                    <div style={{ 
+                        fontWeight: 'bold', 
+                        marginBottom: '8px',
+                        color: validationResults.errors.length > 0 ? '#ff4444' : '#ff6b35'
+                    }}>
+                        {validationResults.errors.length > 0 ? '🚫 Validation Errors' : validationResults.warnings.length > 0 ? '⚠️ Validation Warnings' : '💡 Suggestions'}
+                    </div>
                     <div style={{ 
                         fontWeight: 'bold', 
                         marginBottom: '8px',
@@ -4066,10 +4205,32 @@ const CabinetDesigner = () => {
             </div>
 
             <div className="section-header">APPEARANCE</div>
+            
+            {/* Resize handle for right sidebar */}
+            <div 
+                onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleRightResizeStart();
+                }}
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: -4,
+                    width: '8px',
+                    height: '100%',
+                    cursor: 'col-resize',
+                    background: 'transparent',
+                    zIndex: 100,
+                    transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 107, 53, 0.5)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            />
             </div>
             )}
+        
         </div>
-
+        
         {/* Keyboard Shortcuts Manager */}
         <KeyboardShortcutsManager
             onSave={saveProject}
