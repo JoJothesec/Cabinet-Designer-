@@ -1,0 +1,908 @@
+
+ * ▐▛███▜▌ *   Claude Code v2.0.76
+* ▝▜█████▛▘ *  Opus 4.5 · Claude Max
+ *  ▘▘ ▝▝  *   ~/Repos/jojothesec/Cabinet-Designer-
+
+  A gift for you
+  Your rate limits are 2x higher through 12/31. Enjoy the extra room to think!
+
+> /model 
+  ⎿  Set model to Default (Opus 4.5 · Most capable for complex work)
+
+> I want to build a test harness for this web app, including unit tests and 
+regression testion for a CI/CD workflow (ultimately using GitHub Actions). 
+What testing tools do you recommend? 
+
+⏺ I'll explore the codebase to understand the current setup and make informed recommendations for testing tools.
+
+⏺ Explore(Explore codebase for testing)
+  ⎿  Done (38 tool uses · 59.1k tokens · 1m 59s)                           
+
+⏺ Based on my exploration, I have a clear picture of your codebase. Here are my testing tool recommendations:
+
+  Testing Tools Recommendation
+
+  Current State
+
+  - No package.json or testing infrastructure exists
+  - 4,540-line main React component with 57+ hooks
+  - Three.js 3D rendering integration
+  - 15 module files with pure utility functions
+
+  ---
+  Recommended Testing Stack
+
+  | Layer           | Tool                       | Why                                                                         |
+  |-----------------|----------------------------|-----------------------------------------------------------------------------|
+  | Unit Tests      | Vitest                     | Faster than Jest, ESM-native, excellent DX, works great with modern tooling |
+  | React Testing   | React Testing Library      | Standard for React components, tests user behavior not implementation       |
+  | DOM Environment | jsdom + vitest-canvas-mock | Provides DOM for Node.js, canvas support for Three.js                       |
+  | E2E/Regression  | Playwright                 | Modern, fast, reliable cross-browser testing, great for CI/CD               |
+  | CI/CD           | GitHub Actions             | You mentioned this - works perfectly with Vitest + Playwright               |
+  | Coverage        | c8 (built into Vitest)     | Native V8 coverage, no extra config needed                                  |
+
+  ---
+  Why These Tools?
+
+  Vitest over Jest:
+  - 10-20x faster for HMR/watch mode
+  - Native ESM support (your modules use ES6)
+  - Compatible with Jest's API (easy to learn)
+  - Built-in coverage with c8
+
+  Playwright over Cypress:
+  - Faster parallel execution
+  - Better CI/CD integration
+  - Auto-wait reduces flakiness
+  - Native GitHub Actions support
+
+  ---
+  What Would Be Tested
+
+  | Test Type   | Coverage                                                                                |
+  |-------------|-----------------------------------------------------------------------------------------|
+  | Unit        | parseFraction(), decimalToFraction(), validation functions, Cabinet/Door/Drawer classes |
+  | Component   | State updates, event handlers, sidebar behavior, form inputs                            |
+  | Integration | Project save/load, shopping list calculations, measurement chains                       |
+  | E2E         | Full user workflows, 3D canvas interactions, export functions                           |
+
+  ---
+  Questions for You
+
+  Before I write the detailed implementation plan, I have a few clarifying questions:
+                                                                           
+⏺ User answered Claude's questions:
+  ⎿  · Do you want me to add a package.json and npm-based tooling, or do you
+      prefer to keep the zero-build-step approach? → Add package.json + npm 
+     (Recommended)
+     · What level of test coverage do you want to start with? → Core 
+     utilities first (Recommended)
+     · Do you want to add TypeScript as part of this effort? → No, keep 
+     JavaScript
+
+⏺ Now I have everything I need. Let me write the implementation plan.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ Let me verify the module structure to ensure the plan is accurate for importing them in tests.
+
+⏺ Read(modules/measurements.js)
+  ⎿  Error reading file
+
+⏺ Read(modules/cabinetClasses.js)
+  ⎿  Error reading file
+
+⏺ Read(site/modules/measurements.js)
+  ⎿  Read 60 lines
+
+⏺ Read(site/modules/cabinetClasses.js)
+  ⎿  Read 60 lines
+
+⏺ I see an important detail - the modules use global functions without ES module exports. I need to update the plan to address this.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ The plan is complete. Here's a summary:
+
+  Plan Summary
+
+  Testing Stack:
+  - Vitest for unit/integration tests
+  - Playwright for E2E regression tests
+  - GitHub Actions for CI/CD
+
+  Implementation Phases:
+  1. Add package.json and install dependencies
+  2. Create Vitest + Playwright configs
+  3. Add exports to module files (maintains browser compatibility)
+  4. Write unit tests for core utilities (measurements, validation, classes, history)
+  5. Write E2E tests for critical user workflows
+  6. Set up GitHub Actions workflow
+
+  Key Insight: The modules currently use global functions without exports. The plan includes adding conditional exports that work in Node.js but don't break browser usage.
+
+  Ready to proceed when you approve the plan.
+  ⎿  User rejected Claude's plan:
+     ╭─────────────────────────────────────────────────────────────────────────╮
+     │ Test Harness Implementation Plan                                        │
+     │                                                                         │
+     │ Overview                                                                │
+     │                                                                         │
+     │ Add a testing infrastructure to Cabinet Designer Pro with Vitest for    │
+     │ unit tests and Playwright for E2E/regression tests, integrated with     │
+     │ GitHub Actions CI/CD.                                                   │
+     │                                                                         │
+     │ Phase 1: Project Setup                                                  │
+     │                                                                         │
+     │ 1.1 Initialize npm and install dependencies                             │
+     │                                                                         │
+     │ Create package.json in project root:                                    │
+     │ {                                                                       │
+     │   "name": "cabinet-designer-pro",                                       │
+     │   "version": "1.0.0",                                                   │
+     │   "type": "module",                                                     │
+     │   "scripts": {                                                          │
+     │     "test": "vitest run",                                               │
+     │     "test:watch": "vitest",                                             │
+     │     "test:coverage": "vitest run --coverage",                           │
+     │     "test:e2e": "playwright test",                                      │
+     │     "test:all": "npm run test && npm run test:e2e",                     │
+     │     "serve": "python3 -m http.server 8000"                              │
+     │   }                                                                     │
+     │ }                                                                       │
+     │                                                                         │
+     │ Install dependencies:                                                   │
+     │ npm install -D vitest @vitest/coverage-v8 jsdom vitest-canvas-mock      │
+     │ npm install -D @playwright/test                                         │
+     │ npx playwright install                                                  │
+     │                                                                         │
+     │ 1.2 Create Vitest config                                                │
+     │                                                                         │
+     │ Create vitest.config.js:                                                │
+     │ import { defineConfig } from 'vitest/config'                            │
+     │                                                                         │
+     │ export default defineConfig({                                           │
+     │   test: {                                                               │
+     │     environment: 'jsdom',                                               │
+     │     setupFiles: ['./tests/setup.js'],                                   │
+     │     include: ['tests/**/*.test.js'],                                    │
+     │     coverage: {                                                         │
+     │       provider: 'v8',                                                   │
+     │       include: ['site/modules/**/*.js']                                 │
+     │     }                                                                   │
+     │   }                                                                     │
+     │ })                                                                      │
+     │                                                                         │
+     │ 1.3 Create test setup file                                              │
+     │                                                                         │
+     │ Create tests/setup.js:                                                  │
+     │ import 'vitest-canvas-mock'                                             │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Phase 2: Core Utility Unit Tests (Priority)                             │
+     │                                                                         │
+     │ 2.1 Measurements module tests                                           │
+     │                                                                         │
+     │ File: tests/unit/measurements.test.js                                   │
+     │                                                                         │
+     │ Test cases for parseFraction():                                         │
+     │ - Whole numbers: "36" → 36                                              │
+     │ - Decimals: "36.5" → 36.5                                               │
+     │ - Simple fractions: "3/4" → 0.75                                        │
+     │ - Mixed numbers: "1 1/2" → 1.5                                          │
+     │ - Complex fractions: "36 3/8" → 36.375                                  │
+     │ - Edge cases: empty string, invalid input, negative numbers             │
+     │                                                                         │
+     │ Test cases for decimalToFraction():                                     │
+     │ - Even numbers: 36 → "36"                                               │
+     │ - Common fractions: 0.5 → "1/2", 0.75 → "3/4"                           │
+     │ - 16ths/32nds: 0.0625 → "1/16"                                          │
+     │ - Rounding behavior                                                     │
+     │                                                                         │
+     │ 2.2 Validation module tests                                             │
+     │                                                                         │
+     │ File: tests/unit/validation.test.js                                     │
+     │                                                                         │
+     │ Test cases:                                                             │
+     │ - DIMENSION_CONSTRAINTS limits (min/max width, height, depth)           │
+     │ - validateDimension() with valid inputs                                 │
+     │ - validateDimension() with out-of-range inputs                          │
+     │ - Structural integrity warnings                                         │
+     │                                                                         │
+     │ 2.3 Cabinet classes tests                                               │
+     │                                                                         │
+     │ File: tests/unit/cabinetClasses.test.js                                 │
+     │                                                                         │
+     │ Test cases:                                                             │
+     │ - Cabinet constructor defaults                                          │
+     │ - Cabinet dimension updates                                             │
+     │ - Door and Drawer creation                                              │
+     │ - Hardware assignment                                                   │
+     │ - Class method behavior                                                 │
+     │                                                                         │
+     │ 2.4 History manager tests                                               │
+     │                                                                         │
+     │ File: tests/unit/historyManager.test.js                                 │
+     │                                                                         │
+     │ Test cases:                                                             │
+     │ - pushState() adds to history                                           │
+     │ - undo() returns previous state                                         │
+     │ - redo() returns next state                                             │
+     │ - 50-state limit enforced                                               │
+     │ - jumpTo() works correctly                                              │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Phase 3: Integration Tests                                              │
+     │                                                                         │
+     │ 3.1 Shopping list generator tests                                       │
+     │                                                                         │
+     │ File: tests/integration/shoppingList.test.js                            │
+     │                                                                         │
+     │ Test cases:                                                             │
+     │ - Single cabinet material calculation                                   │
+     │ - Multiple cabinet aggregation                                          │
+     │ - Sheet optimization (4x8, 5x5)                                         │
+     │ - Hardware counting                                                     │
+     │ - Edge banding calculations                                             │
+     │                                                                         │
+     │ 3.2 Project storage tests                                               │
+     │                                                                         │
+     │ File: tests/integration/projectManager.test.js                          │
+     │                                                                         │
+     │ Test cases:                                                             │
+     │ - Save project to localStorage mock                                     │
+     │ - Load project from localStorage mock                                   │
+     │ - Export to JSON format                                                 │
+     │ - Import from JSON format                                               │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Phase 4: E2E Regression Tests (Playwright)                              │
+     │                                                                         │
+     │ 4.1 Playwright config                                                   │
+     │                                                                         │
+     │ Create playwright.config.js:                                            │
+     │ import { defineConfig } from '@playwright/test'                         │
+     │                                                                         │
+     │ export default defineConfig({                                           │
+     │   testDir: './tests/e2e',                                               │
+     │   use: {                                                                │
+     │     baseURL: 'http://localhost:8000/site/',                             │
+     │   },                                                                    │
+     │   webServer: {                                                          │
+     │     command: 'python3 -m http.server 8000',                             │
+     │     port: 8000,                                                         │
+     │     reuseExistingServer: !process.env.CI                                │
+     │   }                                                                     │
+     │ })                                                                      │
+     │                                                                         │
+     │ 4.2 E2E test scenarios                                                  │
+     │                                                                         │
+     │ File: tests/e2e/cabinet-workflow.spec.js                                │
+     │                                                                         │
+     │ Critical user flows:                                                    │
+     │ - App loads without errors                                              │
+     │ - Create new cabinet (default dimensions)                               │
+     │ - Modify cabinet dimensions via inputs                                  │
+     │ - Add door to cabinet                                                   │
+     │ - Add drawer to cabinet                                                 │
+     │ - Switch camera views (number keys)                                     │
+     │ - Undo/redo functionality                                               │
+     │ - Save project                                                          │
+     │ - Export to PDF (verify download triggers)                              │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Phase 5: GitHub Actions CI/CD                                           │
+     │                                                                         │
+     │ 5.1 Create workflow file                                                │
+     │                                                                         │
+     │ Create .github/workflows/test.yml:                                      │
+     │ name: Tests                                                             │
+     │                                                                         │
+     │ on:                                                                     │
+     │   push:                                                                 │
+     │     branches: [main]                                                    │
+     │   pull_request:                                                         │
+     │     branches: [main]                                                    │
+     │                                                                         │
+     │ jobs:                                                                   │
+     │   unit-tests:                                                           │
+     │     runs-on: ubuntu-latest                                              │
+     │     steps:                                                              │
+     │       - uses: actions/checkout@v4                                       │
+     │       - uses: actions/setup-node@v4                                     │
+     │         with:                                                           │
+     │           node-version: '20'                                            │
+     │           cache: 'npm'                                                  │
+     │       - run: npm ci                                                     │
+     │       - run: npm run test:coverage                                      │
+     │       - uses: actions/upload-artifact@v4                                │
+     │         with:                                                           │
+     │           name: coverage-report                                         │
+     │           path: coverage/                                               │
+     │                                                                         │
+     │   e2e-tests:                                                            │
+     │     runs-on: ubuntu-latest                                              │
+     │     steps:                                                              │
+     │       - uses: actions/checkout@v4                                       │
+     │       - uses: actions/setup-node@v4                                     │
+     │         with:                                                           │
+     │           node-version: '20'                                            │
+     │           cache: 'npm'                                                  │
+     │       - run: npm ci                                                     │
+     │       - run: npx playwright install --with-deps                         │
+     │       - run: npm run test:e2e                                           │
+     │       - uses: actions/upload-artifact@v4                                │
+     │         if: failure()                                                   │
+     │         with:                                                           │
+     │           name: playwright-report                                       │
+     │           path: playwright-report/                                      │
+     │                                                                         │
+     │ ---                                                                     │
+     │ File Structure After Implementation                                     │
+     │                                                                         │
+     │ Cabinet-Designer-/                                                      │
+     │ ├── package.json              # NEW                                     │
+     │ ├── package-lock.json         # NEW (auto-generated)                    │
+     │ ├── vitest.config.js          # NEW                                     │
+     │ ├── playwright.config.js      # NEW                                     │
+     │ ├── .github/                                                            │
+     │ │   └── workflows/                                                      │
+     │ │       └── test.yml          # NEW                                     │
+     │ ├── tests/                    # NEW                                     │
+     │ │   ├── setup.js                                                        │
+     │ │   ├── unit/                                                           │
+     │ │   │   ├── measurements.test.js                                        │
+     │ │   │   ├── validation.test.js                                          │
+     │ │   │   ├── cabinetClasses.test.js                                      │
+     │ │   │   └── historyManager.test.js                                      │
+     │ │   ├── integration/                                                    │
+     │ │   │   ├── shoppingList.test.js                                        │
+     │ │   │   └── projectManager.test.js                                      │
+     │ │   └── e2e/                                                            │
+     │ │       └── cabinet-workflow.spec.js                                    │
+     │ ├── site/                     # EXISTING (unchanged)                    │
+     │ └── modules/                  # EXISTING (unchanged)                    │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Implementation Order                                                    │
+     │                                                                         │
+     │ 1. package.json + vitest.config.js - Get npm working                    │
+     │ 2. tests/unit/measurements.test.js - First test file, validate setup    │
+     │ works                                                                   │
+     │ 3. tests/unit/validation.test.js - Second module                        │
+     │ 4. tests/unit/cabinetClasses.test.js - Third module                     │
+     │ 5. tests/unit/historyManager.test.js - Fourth module                    │
+     │ 6. playwright.config.js + tests/e2e/cabinet-workflow.spec.js - E2E setup│
+     │ 7. .github/workflows/test.yml - CI/CD pipeline                          │
+     │ 8. Integration tests - Shopping list, project manager                   │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Notes                                                                   │
+     │                                                                         │
+     │ Module Export Strategy                                                  │
+     │                                                                         │
+     │ The current modules define global functions (e.g., function             │
+     │ parseFraction()) without ES module exports. To make them testable:      │
+     │                                                                         │
+     │ Option A (Recommended): Add exports to module files without breaking    │
+     │ browser usage:                                                          │
+     │ // At end of measurements.js                                            │
+     │ if (typeof module !== 'undefined' && module.exports) {                  │
+     │   module.exports = { parseFraction, decimalToFraction, formatMeasurement│
+     │  };                                                                     │
+     │ }                                                                       │
+     │                                                                         │
+     │ Option B: Create test-specific wrapper that evaluates the file:         │
+     │ // tests/helpers/loadModule.js                                          │
+     │ import { readFileSync } from 'fs';                                      │
+     │ import vm from 'vm';                                                    │
+     │ export function loadModule(path) {                                      │
+     │   const code = readFileSync(path, 'utf-8');                             │
+     │   const context = vm.createContext({});                                 │
+     │   vm.runInContext(code, context);                                       │
+     │   return context;                                                       │
+     │ }                                                                       │
+     │                                                                         │
+     │ I recommend Option A - minimal changes, clean exports, maintains browser│
+     │  compatibility.                                                         │
+     │                                                                         │
+     │ Files Requiring Export Additions                                        │
+     │                                                                         │
+     │ | File                           | Functions/Classes to Export          │
+     │                |                                                        │
+     │ |--------------------------------|--------------------------------------│
+     │ ---------------|                                                        │
+     │ | site/modules/measurements.js   | parseFraction, decimalToFraction,    │
+     │ formatMeasurement |                                                     │
+     │ | site/modules/validation.js     | DIMENSION_CONSTRAINTS,               │
+     │ validateDimension            |                                          │
+     │ | site/modules/cabinetClasses.js | Cabinet, Door, Drawer,               │
+     │ CabinetComponent             |                                          │
+     │ | site/modules/historyManager.js | HistoryManager                       │
+     │                |                                                        │
+     │ | site/modules/constants.js      | DOOR_SPECS, HINGE_TYPES, SLIDE_TYPES,│
+     │  PULL_TYPES    |                                                        │
+     │                                                                         │
+     │ Other Notes                                                             │
+     │                                                                         │
+     │ - Three.js mocking - Unit tests will mock Three.js; E2E tests run in    │
+     │ real browser                                                            │
+     │ - Coverage target - Start with core utilities, aim for 80%+ on tested   │
+     │ modules                                                                 │
+     │ - Browser compatibility - The if (typeof module !== 'undefined') pattern│
+     │  ensures exports only activate in Node.js                               │
+     │                                                                         │
+     │ ---                                                                     │
+     │ Critical Files to Modify/Create                                         │
+     │                                                                         │
+     │ | File                               | Action |                         │
+     │ |------------------------------------|--------|                         │
+     │ | package.json                       | Create |                         │
+     │ | vitest.config.js                   | Create |                         │
+     │ | playwright.config.js               | Create |                         │
+     │ | tests/setup.js                     | Create |                         │
+     │ | tests/unit/measurements.test.js    | Create |                         │
+     │ | tests/unit/validation.test.js      | Create |                         │
+     │ | tests/unit/cabinetClasses.test.js  | Create |                         │
+     │ | tests/unit/historyManager.test.js  | Create |                         │
+     │ | tests/e2e/cabinet-workflow.spec.js | Create |                         │
+     │ | .github/workflows/test.yml         | Create |                         │
+     │                                                                         │
+     │                                                                         │
+     │                                                                         │
+     ╰─────────────────────────────────────────────────────────────────────────╯
+
+> Before we start building out the testing infrastructure, let's write the 
+test plan to a file in a new dir: `tests/unit-test-plan.md`. I only want to 
+create tests that can be written and executed without altering the current 
+codebase. You mentioned that we may need to add E2E hooks to the existing 
+code (or maybe I misunderstood) but let's either skip these tests for now 
+(we can add E2E later). Do you have any questions about the test plan before
+ you write it? 
+
+⏺ Good clarification. I have one question:
+
+  On E2E tests: Actually, Playwright E2E tests don't require any changes to existing code - they run in a real browser and interact with your app as-is. The challenge is with unit tests in Node.js, since your modules define global functions without exports.
+
+  For unit tests without modifying source files, I have two options:
+
+  | Approach             | How it works                                                  | Trade-off                                     |
+  |----------------------|---------------------------------------------------------------|-----------------------------------------------|
+  | VM evaluation        | Load each .js file into a Node.js VM context, extract globals | Works today, slightly more complex test setup |
+  | Browser-based runner | Run Vitest in browser mode instead of Node.js                 | Closer to real environment, but slower        |
+                                                                           
+⏺ User answered Claude's questions:
+  ⎿  · Which approach do you prefer for running unit tests without modifying
+      source files? → VM evaluation (Recommended)
+     · Should I include E2E tests in the plan since they don't require code 
+     changes? → Include E2E in plan
+
+
+⏺ I have all the information I need. Let me exit plan mode so I can write the test plan to tests/unit-test-plan.md.
+                                                                           
+⏺ User approved Claude's plan
+  ⎿  Plan saved to: ~/.claude/plans/swirling-popping-pike.md · /plan to edit
+
+     Test Harness Implementation Plan
+
+     Overview
+
+     Add a testing infrastructure to Cabinet Designer Pro with Vitest for 
+     unit tests and Playwright for E2E/regression tests, integrated with
+     GitHub Actions CI/CD.
+
+     Phase 1: Project Setup
+
+     1.1 Initialize npm and install dependencies
+
+     Create package.json in project root:
+     {
+       "name": "cabinet-designer-pro",
+       "version": "1.0.0",
+       "type": "module",
+       "scripts": {
+         "test": "vitest run",
+         "test:watch": "vitest",
+         "test:coverage": "vitest run --coverage",
+         "test:e2e": "playwright test",
+         "test:all": "npm run test && npm run test:e2e",
+         "serve": "python3 -m http.server 8000"
+       }
+     }
+
+     Install dependencies:
+     npm install -D vitest @vitest/coverage-v8 jsdom vitest-canvas-mock
+     npm install -D @playwright/test
+     npx playwright install
+
+     1.2 Create Vitest config
+
+     Create vitest.config.js:
+     import { defineConfig } from 'vitest/config'
+
+     export default defineConfig({
+       test: {
+         environment: 'jsdom',
+         setupFiles: ['./tests/setup.js'],
+         include: ['tests/**/*.test.js'],
+         coverage: {
+           provider: 'v8',
+           include: ['site/modules/**/*.js']
+         }
+       }
+     })
+
+     1.3 Create test setup file
+
+     Create tests/setup.js:
+     import 'vitest-canvas-mock'
+
+     ---
+     Phase 2: Core Utility Unit Tests (Priority)
+
+     2.1 Measurements module tests
+
+     File: tests/unit/measurements.test.js
+
+     Test cases for parseFraction():
+     - Whole numbers: "36" → 36
+     - Decimals: "36.5" → 36.5
+     - Simple fractions: "3/4" → 0.75
+     - Mixed numbers: "1 1/2" → 1.5
+     - Complex fractions: "36 3/8" → 36.375
+     - Edge cases: empty string, invalid input, negative numbers
+
+     Test cases for decimalToFraction():
+     - Even numbers: 36 → "36"
+     - Common fractions: 0.5 → "1/2", 0.75 → "3/4"
+     - 16ths/32nds: 0.0625 → "1/16"
+     - Rounding behavior
+
+     2.2 Validation module tests
+
+     File: tests/unit/validation.test.js
+
+     Test cases:
+     - DIMENSION_CONSTRAINTS limits (min/max width, height, depth)
+     - validateDimension() with valid inputs
+     - validateDimension() with out-of-range inputs
+     - Structural integrity warnings
+
+     2.3 Cabinet classes tests
+
+     File: tests/unit/cabinetClasses.test.js
+
+     Test cases:
+     - Cabinet constructor defaults
+     - Cabinet dimension updates
+     - Door and Drawer creation
+     - Hardware assignment
+     - Class method behavior
+
+     2.4 History manager tests
+
+     File: tests/unit/historyManager.test.js
+
+     Test cases:
+     - pushState() adds to history
+     - undo() returns previous state
+     - redo() returns next state
+     - 50-state limit enforced
+     - jumpTo() works correctly
+
+     ---
+     Phase 3: Integration Tests
+
+     3.1 Shopping list generator tests
+
+     File: tests/integration/shoppingList.test.js
+
+     Test cases:
+     - Single cabinet material calculation
+     - Multiple cabinet aggregation
+     - Sheet optimization (4x8, 5x5)
+     - Hardware counting
+     - Edge banding calculations
+
+     3.2 Project storage tests
+
+     File: tests/integration/projectManager.test.js
+
+     Test cases:
+     - Save project to localStorage mock
+     - Load project from localStorage mock
+     - Export to JSON format
+     - Import from JSON format
+
+     ---
+     Phase 4: E2E Regression Tests (Playwright)
+
+     4.1 Playwright config
+
+     Create playwright.config.js:
+     import { defineConfig } from '@playwright/test'
+
+     export default defineConfig({
+       testDir: './tests/e2e',
+       use: {
+         baseURL: 'http://localhost:8000/site/',
+       },
+       webServer: {
+         command: 'python3 -m http.server 8000',
+         port: 8000,
+         reuseExistingServer: !process.env.CI
+       }
+     })
+
+     4.2 E2E test scenarios
+
+     File: tests/e2e/cabinet-workflow.spec.js
+
+     Critical user flows:
+     - App loads without errors
+     - Create new cabinet (default dimensions)
+     - Modify cabinet dimensions via inputs
+     - Add door to cabinet
+     - Add drawer to cabinet
+     - Switch camera views (number keys)
+     - Undo/redo functionality
+     - Save project
+     - Export to PDF (verify download triggers)
+
+     ---
+     Phase 5: GitHub Actions CI/CD
+
+     5.1 Create workflow file
+
+     Create .github/workflows/test.yml:
+     name: Tests
+
+     on:
+       push:
+         branches: [main]
+       pull_request:
+         branches: [main]
+
+     jobs:
+       unit-tests:
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+           - uses: actions/setup-node@v4
+             with:
+               node-version: '20'
+               cache: 'npm'
+           - run: npm ci
+           - run: npm run test:coverage
+           - uses: actions/upload-artifact@v4
+             with:
+               name: coverage-report
+               path: coverage/
+
+       e2e-tests:
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+           - uses: actions/setup-node@v4
+             with:
+               node-version: '20'
+               cache: 'npm'
+           - run: npm ci
+           - run: npx playwright install --with-deps
+           - run: npm run test:e2e
+           - uses: actions/upload-artifact@v4
+             if: failure()
+             with:
+               name: playwright-report
+               path: playwright-report/
+
+     ---
+     File Structure After Implementation
+
+     Cabinet-Designer-/
+     ├── package.json              # NEW
+     ├── package-lock.json         # NEW (auto-generated)
+     ├── vitest.config.js          # NEW
+     ├── playwright.config.js      # NEW
+     ├── .github/
+     │   └── workflows/
+     │       └── test.yml          # NEW
+     ├── tests/                    # NEW
+     │   ├── setup.js
+     │   ├── unit/
+     │   │   ├── measurements.test.js
+     │   │   ├── validation.test.js
+     │   │   ├── cabinetClasses.test.js
+     │   │   └── historyManager.test.js
+     │   ├── integration/
+     │   │   ├── shoppingList.test.js
+     │   │   └── projectManager.test.js
+     │   └── e2e/
+     │       └── cabinet-workflow.spec.js
+     ├── site/                     # EXISTING (unchanged)
+     └── modules/                  # EXISTING (unchanged)
+
+     ---
+     Implementation Order
+
+     1. package.json + vitest.config.js - Get npm working
+     2. tests/unit/measurements.test.js - First test file, validate setup 
+     works
+     3. tests/unit/validation.test.js - Second module
+     4. tests/unit/cabinetClasses.test.js - Third module
+     5. tests/unit/historyManager.test.js - Fourth module
+     6. playwright.config.js + tests/e2e/cabinet-workflow.spec.js - E2E 
+     setup
+     7. .github/workflows/test.yml - CI/CD pipeline
+     8. Integration tests - Shopping list, project manager
+
+     ---
+     Notes
+
+     Module Export Strategy
+
+     The current modules define global functions (e.g., function 
+     parseFraction()) without ES module exports. To make them testable:
+
+     Option A (Recommended): Add exports to module files without breaking 
+     browser usage:
+     // At end of measurements.js
+     if (typeof module !== 'undefined' && module.exports) {
+       module.exports = { parseFraction, decimalToFraction, 
+     formatMeasurement };
+     }
+
+     Option B: Create test-specific wrapper that evaluates the file:
+     // tests/helpers/loadModule.js
+     import { readFileSync } from 'fs';
+     import vm from 'vm';
+     export function loadModule(path) {
+       const code = readFileSync(path, 'utf-8');
+       const context = vm.createContext({});
+       vm.runInContext(code, context);
+       return context;
+     }
+
+     I recommend Option A - minimal changes, clean exports, maintains 
+     browser compatibility.
+
+     Files Requiring Export Additions
+
+     | File                           | Functions/Classes to Export         
+                     |
+     |--------------------------------|-------------------------------------
+     ----------------|
+     | site/modules/measurements.js   | parseFraction, decimalToFraction, 
+     formatMeasurement |
+     | site/modules/validation.js     | DIMENSION_CONSTRAINTS, 
+     validateDimension            |
+     | site/modules/cabinetClasses.js | Cabinet, Door, Drawer, 
+     CabinetComponent             |
+     | site/modules/historyManager.js | HistoryManager                      
+                     |
+     | site/modules/constants.js      | DOOR_SPECS, HINGE_TYPES, 
+     SLIDE_TYPES, PULL_TYPES    |
+
+     Other Notes
+
+     - Three.js mocking - Unit tests will mock Three.js; E2E tests run in 
+     real browser
+     - Coverage target - Start with core utilities, aim for 80%+ on tested 
+     modules
+     - Browser compatibility - The if (typeof module !== 'undefined') 
+     pattern ensures exports only activate in Node.js
+
+     ---
+     Critical Files to Modify/Create
+
+     | File                               | Action |
+     |------------------------------------|--------|
+     | package.json                       | Create |
+     | vitest.config.js                   | Create |
+     | playwright.config.js               | Create |
+     | tests/setup.js                     | Create |
+     | tests/unit/measurements.test.js    | Create |
+     | tests/unit/validation.test.js      | Create |
+     | tests/unit/cabinetClasses.test.js  | Create |
+     | tests/unit/historyManager.test.js  | Create |
+     | tests/e2e/cabinet-workflow.spec.js | Create |
+     | .github/workflows/test.yml         | Create |
+
+
+
+⏺ Now let me write the test plan to tests/unit-test-plan.md:
+
+⏺ Write(tests/unit-test-plan.md)
+  ⎿  Wrote 249 lines to tests/unit-test-plan.md                            
+     # Cabinet Designer Pro - Test Plan
+     ## Approach
+     **No changes to existing source files.** All tests run without
+     modifying the codebase.
+     - **Unit Tests:** Use VM evaluation to load global functions from
+     module files
+     - **E2E Tests:** Playwright runs in real browser - no code changes
+     needed
+     ---
+     … +239 lines (ctrl+o to expand)
+
+⏺ Done. Created tests/unit-test-plan.md with:
+
+  - VM-based module loader - No source file modifications needed
+  - 5 unit test files covering measurements, validation, cabinet classes, history manager, and constants
+  - E2E test file for critical user workflows (Playwright)
+  - Detailed test cases for each function/class
+  - Implementation order and dependencies
+
+  Ready to start implementing when you are. Would you like me to begin with the project setup (package.json, configs, helpers)?
+
+> First, let's create a new branch, `create-tests` for our 
+@tests/unit-test-plan.md and all of our new test scripts and infrastructure.
+ 
+  ⎿  Read tests/unit-test-plan.md (249 lines)
+
+⏺ Bash(git checkout -b create-tests)
+  ⎿  Switched to a new branch 'create-tests'
+
+⏺ Done. Now on branch create-tests. Ready to start building the test infrastructure.
+
+> Let's commit @tests/unit-test-plan.md and push the new branch to the 
+remote 
+  ⎿  Read tests/unit-test-plan.md (249 lines)
+
+⏺ Bash(git add tests/unit-test-plan.md && git status)
+  ⎿  On branch create-tests                             
+     Changes to be committed:
+       (use "git restore --staged <file>..." to unstage)
+     	new file:   tests/unit-test-plan.md
+
+⏺ Bash(git commit -m "Add unit test plan for testing infrastructure…)
+  ⎿  [create-tests 1cab7ca] Add unit test plan for testing infrastructure
+      1 file changed, 248 insertions(+)
+      create mode 100644 tests/unit-test-plan.md
+
+⏺ Bash(git push -u origin create-tests)
+  ⎿ branch 'create-tests' set up to track 'origin/create-tests'.           
+    remote:
+    remote: Create a pull request for 'create-tests' on GitHub by visiting:
+    … +6 lines (ctrl+o to expand)
+
+
+⏺ Done. Committed and pushed create-tests branch to remote.
+
+  Ready to implement the test infrastructure when you are.
+
+> /usage 
+  ⎿  Status dialog dismissed
+
+> /context 
+  ⎿  
+      Context Usage
+     ⛀ ⛁ ⛁ ⛀ ⛀   claude-opus-4-5-20251101 · 50k/200k tokens (25%)
+     ⛁ ⛁ ⛁ ⛀ ⛶ 
+     ⛶ ⛶ ⛶ ⛶ ⛶   ⛁ System prompt: 3.1k tokens (1.5%)
+     ⛶ ⛶ ⛶ ⛶ ⛶   ⛁ System tools: 15.5k tokens (7.8%)
+     ⛶ ⛶ ⛶ ⛶ ⛶   ⛁ MCP tools: 1.3k tokens (0.6%)
+                 ⛁ Memory files: 1.2k tokens (0.6%)
+                 ⛁ Messages: 29.4k tokens (14.7%)
+                 ⛶ Free space: 150k (74.8%)
+     
+     MCP tools · /mcp
+     └ mcp__ide__getDiagnostics: 611 tokens
+     └ mcp__ide__executeCode: 682 tokens
+     
+     Memory files · /memory
+     └ CLAUDE.md: 1.2k tokens
+     
+     Skills and slash commands · /skills
+     
+     Plugin
+     └ ralph-wiggum:help: 788 tokens
+     └ ralph-wiggum:ralph-loop: 536 tokens
+     └ ralph-wiggum:cancel-ralph: 129 tokens
+     
+     
+
+
+
